@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   Stethoscope, MessageSquare, ShieldCheck, Activity, Heart, HeartPulse,
   AlertTriangle, ClipboardList, Thermometer, PenTool, Users, ArrowLeft,
-  Sparkles, Loader2, CheckCircle2, Syringe, ChevronRight
+  Sparkles, Loader2, CheckCircle2, Syringe, ChevronRight, BookOpen,
+  MessageCircle, FileText, Brain, Scissors, Scan, Baby, Bone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TOPIC_CATEGORIES, DIFFICULTY_LEVELS, SIMULATION_TYPES, type TopicCategory } from '@/lib/topic-categories';
@@ -17,11 +18,13 @@ import { TOPIC_CATEGORIES, DIFFICULTY_LEVELS, SIMULATION_TYPES, type TopicCatego
 const iconMap: Record<string, any> = {
   Stethoscope, MessageSquare, ShieldCheck, Activity, Heart, HeartPulse,
   AlertTriangle, ClipboardList, Thermometer, PenTool, Users, Syringe,
+  Brain, Scissors, Scan, Baby, Bone,
   Bandage: ShieldCheck, // fallback
 };
 
 const typeIconMap: Record<string, any> = {
-  MessageSquare, Users, PenTool, ClipboardList,
+  MessageSquare, Users, PenTool, ClipboardList, BookOpen,
+  MessageCircle, FileText, Stethoscope,
 };
 
 export function NewSimulationClient() {

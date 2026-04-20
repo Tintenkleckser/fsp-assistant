@@ -10,15 +10,15 @@ export const dynamic = 'force-dynamic';
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'http://localhost:3000'),
-  title: 'PflegeProfi - Prüfungsvorbereitung',
-  description: 'Simulationssystem für Pflegekräfte zur Vorbereitung auf deutsche Anerkennungsprüfungen',
+  title: 'FSP-Assistent - Fachsprachenprüfung für Ärzte',
+  description: 'Vorbereitung auf die Fachsprachenprüfung für ausländische Ärzte in Deutschland',
   icons: {
     icon: '/favicon.svg',
     shortcut: '/favicon.svg',
   },
   openGraph: {
-    title: 'PflegeProfi - Prüfungsvorbereitung',
-    description: 'Simulationssystem für Pflegekräfte zur Vorbereitung auf deutsche Anerkennungsprüfungen',
+    title: 'FSP-Assistent - Fachsprachenprüfung für Ärzte',
+    description: 'Vorbereitung auf die Fachsprachenprüfung für ausländische Ärzte in Deutschland',
     images: ['/og-image.png'],
   },
 };

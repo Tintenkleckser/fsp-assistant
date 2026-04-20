@@ -84,7 +84,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
           const cl = data.template.checklist;
           if (Array.isArray(cl) && cl.length > 0) setChecklistItems(cl);
           const simType = data.template.type;
-          setRequiresDoc(simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation');
+          setRequiresDoc(simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation' || simType === 'comprehension');
           // Documentation-only type: skip chat, go directly to documenting
           if (simType === 'documentation' && data?.status !== 'completed') {
             setSimStatus('documenting');

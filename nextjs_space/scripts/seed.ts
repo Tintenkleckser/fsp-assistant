@@ -6,263 +6,209 @@ async function main() {
   // Note: Users are now managed by Supabase Auth.
   // Profiles are auto-created on first login via getAuthUser().
 
-  // Seed simulation template
-  const templateId = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890';
+  // ============================================
+  // FSP Simulation Templates (6 Prüfungsteile)
+  // ============================================
+
+  // Teil 1: Verständnistest (Vokabeln + Körperschema)
+  const t1Id = 'fsp-teil1-vokabel-beginner';
   await prisma.simulationTemplate.upsert({
-    where: { id: templateId },
+    where: { id: t1Id },
     update: {},
     create: {
-      id: templateId,
-      domain: 'nursing',
-      type: 'oral_exam',
-      difficulty: 'intermediate',
-      titleDe: 'Anamnesegespräch: Patient mit Rückenschmerzen',
-      titleTr: 'Öykü Görüşmesi: Sırt Ağrısı Olan Hasta',
-      descriptionDe: 'Sie führen ein Anamnesegespräch mit Herrn Müller (68 Jahre), der über Rückenschmerzen klagt. Erfragen Sie systematisch: Schmerzlokalisation, Schmerzcharakter, Schmerzintensität (Schmerzskala), Beginn, Auslöser, begleitende Symptome, Vorerkrankungen, Medikation.',
-      descriptionTr: 'Bay Müller (68 yaşında) ile sırt ağrısı şikayeti olan bir öykü görüşmesi yapıyorsunuz. Sistematik olarak sorun: Ağrı lokalizasyonu, ağrı karakteri, ağrı yoğunluğu (ağrı skalası), başlangıç, tetikleyiciler, eşlik eden semptomlar, önceki hastalıklar, ilaçlar.',
-      systemPrompt: `Du bist ein Prüfer für die Pflegeexamensprüfung in Deutschland. Der Kandidat führt ein Anamnesegespräch mit einem Patienten (Herrn Müller, 68 Jahre) mit Rückenschmerzen.
-
-DEINE ROLLE: Du spielst den Patienten Herrn Müller. Antworte auf die Fragen des Kandidaten realistisch und gib nur die Informationen preis, die erfragt werden. Sprich als Patient in einfacher Sprache, nicht in Fachsprache. Du bist ein freundlicher älterer Herr.
-
-PATIENTENINFORMATIONEN:
-- Alter: 68 Jahre
-- Schmerzen: Unterer Rücken, seit 3 Tagen
-- Schmerzcharakter: Stechend, bei Bewegung schlimmer
-- Schmerzintensität: 7/10
-- Auslöser: Gartenarbeit (schweres Heben)
-- Begleitsymptome: Keine Ausstrahlung ins Bein, keine Taubheit
-- Vorerkrankungen: Bluthochdruck
-- Medikation: Ramipril 5mg
-- Allergien: Keine bekannt
-- Letzte Mahlzeit: Frühstück um 8 Uhr
-
-WICHTIG:
-- Antworte immer in der Ich-Form als Patient
-- Gib nur Informationen preis, die direkt erfragt werden
-- Wenn der Kandidat eine unklare Frage stellt, frage höflich nach
-- Beende NICHT das Gespräch von dir aus`,
-      evaluationCriteria: JSON.stringify([
-        { key: 'fachsprache', label_de: 'Fachsprache', label_tr: 'Tıbbi Terminoloji', weight: 3 },
-        { key: 'struktur', label_de: 'Struktur', label_tr: 'Yapı', weight: 3 },
-        { key: 'empathie', label_de: 'Empathie', label_tr: 'Empati', weight: 2 },
-      ]),
-      maxTurns: 8,
-    },
-  });
-
-  // Seed additional simulation templates
-  const template2Id = 'b2c3d4e5-f6a7-8901-bcde-f12345678901';
-  await prisma.simulationTemplate.upsert({
-    where: { id: template2Id },
-    update: {},
-    create: {
-      id: template2Id,
-      domain: 'nursing',
-      type: 'oral_exam',
+      id: t1Id,
+      domain: 'medicine',
+      type: 'vocab_test',
       difficulty: 'beginner',
-      titleDe: 'Vitalzeichenkontrolle: Erklärung an den Patienten',
-      titleTr: 'Vital Bulgu Kontrolü: Hastaya Açıklama',
-      descriptionDe: 'Sie sollen bei Frau Schmidt (75 Jahre) die Vitalzeichen kontrollieren. Erklären Sie der Patientin, was Sie tun werden, und führen Sie das Gespräch professionell und einfühlsam. Frau Schmidt ist ängstlich und hat viele Fragen.',
-      descriptionTr: 'Bayan Schmidt\'in (75 yaşında) vital bulgularını kontrol edeceksiniz. Hastaya ne yapacağınızı açıklayın ve görüşmeyi profesyonel ve empatik bir şekilde yürütün. Bayan Schmidt endişeli ve birçok sorusu var.',
-      systemPrompt: `Du bist ein Prüfer für die Pflegeexamensprüfung in Deutschland. Der Kandidat führt eine Vitalzeichenkontrolle durch und erklärt diese der Patientin.
+      titleDe: 'Verständnistest: Fachsprache ↔ Patientensprache',
+      titleTr: 'Anlama Testi: Tıbbi Dil ↔ Hasta Dili',
+      descriptionDe: 'Übersetzen Sie medizinische Fachbegriffe in die Patientensprache und umgekehrt. Sie haben 20 Minuten für 20 Begriffspaare und 5 Minuten für das Körperschema.',
+      descriptionTr: 'Tıbbi terimleri hasta diline ve tersine çevirin. 20 terim çifti için 20 dakikanız ve vücut şeması için 5 dakikanız var.',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP) für Ärzte in Deutschland.\n\nTEIL 1: VERSTÄNDNISTEST\n\nAufgabe A: Gib dem Kandidaten medizinische Fachbegriffe, die er in die verständliche Patientensprache übersetzen soll.\nAufgabe B: Gib dem Kandidaten deutsche Begriffe, die er in die lateinisch/griechische Fachsprache übersetzen soll.\n\nBeginne mit 5 Begriffen aus Aufgabe A, dann 5 aus Aufgabe B. Bewerte die Antworten sofort und gib korrektes Feedback.\n\nBeispiele Aufgabe A (Fachsprache \u2192 Patientensprache):\n- Cephalgie = Kopfschmerzen\n- Emesis = Erbrechen\n- Dyspnoe = Atemnot/Luftnot\n- Hypertonie = Bluthochdruck\n- Obstipation = Verstopfung\n\nBeispiele Aufgabe B (Deutsch \u2192 Latein/Griechisch):\n- Unterarm = Antebrachium\n- Leber = Hepar\n- Bauchspiegelung = Laparoskopie\n- Gallenblase = Vesica biliaris/fellea\n- Lungenentzündung = Pneumonie\n\nWICHTIG:\n- Fordere Übersetzungen, KEINE Erklärungen\n- Akzeptiere mehrere korrekte Übersetzungen\n- Gib nach jeder Antwort Feedback\n- Frage nacheinander, nicht alle auf einmal`,
+      evaluationCriteria: JSON.stringify([]),
+      checklist: JSON.stringify([
+        { id: 'vocab-a-correct', textDe: 'Fachsprache \u2192 Patientensprache korrekt', category: 'Vokabeln', weight: 2 },
+        { id: 'vocab-b-correct', textDe: 'Deutsch \u2192 Latein/Griechisch korrekt', category: 'Vokabeln', weight: 2 },
+        { id: 'vocab-precision', textDe: 'Präzise Übersetzung (nicht Erklärung)', category: 'Präzision', weight: 1 },
+        { id: 'vocab-speed', textDe: 'Zügige Beantwortung', category: 'Tempo', weight: 1 },
+      ]),
+      maxTurns: 12,
+    },
+  });
 
-DEINE ROLLE: Du spielst die Patientin Frau Schmidt, 75 Jahre alt. Du bist ängstlich und fragst viel nach. Du verstehst medizinische Fachbegriffe nicht gut.
+  // Teil 2: Freies Gespräch
+  const t2Id = 'fsp-teil2-freies-gespraech';
+  await prisma.simulationTemplate.upsert({
+    where: { id: t2Id },
+    update: {},
+    create: {
+      id: t2Id,
+      domain: 'medicine',
+      type: 'free_conversation',
+      difficulty: 'intermediate',
+      titleDe: 'Freies ärztliches Gespräch',
+      titleTr: 'Serbest Tıbbi Görüşme',
+      descriptionDe: 'Die Prüfer stellen Ihnen allgemeine Fragen zu Ihrem beruflichen Werdegang, Ihrer Motivation und zu medizinischen Themen. Es geht um richtiges Verstehen und flüssiges Sprechen.',
+      descriptionTr: 'Sınav komisyonu size mesleki geçmişiniz, motivasyonunuz ve tıbbi konular hakkında genel sorular sorar. Doğru anlama ve akıcı konuşma değerlendirilir.',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 2: FREIES GESPRÄCH (10-15 Minuten)\n\nFühre ein teilweise ärztliches Gespräch mit dem Kandidaten. Stelle Fragen zu:\n\n1. Beruflicher Werdegang: \"Wo haben Sie studiert? In welchem Fach möchten Sie sich spezialisieren?\"\n2. Motivation: \"Warum möchten Sie in Deutschland arbeiten? Was reizt Sie an der deutschen Medizin?\"\n3. Klinische Erfahrung: \"Erzählen Sie von einem interessanten Fall aus Ihrer bisherigen Arbeit.\"\n4. Medizinisches Thema: \"Was wissen Sie über das deutsche Gesundheitssystem? Wie unterscheidet es sich?\"\n5. Alltagsfragen: \"Wie organisieren Sie sich auf Station? Wie gehen Sie mit Stress um?\"\n\nBewerte:\n- Sprachliches Verständnis (Versteht der Kandidat die Fragen?)\n- Ausdrucksfähigkeit (Formuliert er verständliche, vollständige Antworten?)\n- Flüssigkeit (Spricht er flüssig oder stockend?)\n\nWICHTIG:\n- Sei freundlich aber professionell\n- Stelle Nachfragen, wenn Antworten unklar sind\n- Variiere Themen zwischen persönlich und fachlich`,
+      evaluationCriteria: JSON.stringify([]),
+      checklist: JSON.stringify([
+        { id: 'free-understanding', textDe: 'Versteht Fragen richtig', category: 'Verstehen', weight: 3 },
+        { id: 'free-fluency', textDe: 'Spricht flüssig und zusammenhängend', category: 'Sprechen', weight: 3 },
+        { id: 'free-grammar', textDe: 'Korrekte Grammatik und Satzbau', category: 'Grammatik', weight: 2 },
+        { id: 'free-vocabulary', textDe: 'Angemessener Wortschatz', category: 'Wortschatz', weight: 2 },
+        { id: 'free-medical', textDe: 'Kann über medizinische Themen sprechen', category: 'Fachsprache', weight: 2 },
+      ]),
+      maxTurns: 10,
+    },
+  });
 
-PATIENTENINFORMATIONEN:
-- Alter: 75 Jahre
-- Grund des Aufenthalts: Hüft-OP vor 2 Tagen
-- Blutdruck: Normalerweise niedrig (100/60)
-- Puls: 72/min
-- Temperatur: 37.2°C
-- Atemfrequenz: 16/min
-- Ängste: Angst vor Schmerzen, Angst vor schlechten Werten
-- Vorerkrankungen: Osteoporose, leichte Demenz
+  // Teil 3: Arzt-Patient-Gespräch (Anamnese)
+  const t3Id = 'fsp-teil3-anamnese-grundlagen';
+  await prisma.simulationTemplate.upsert({
+    where: { id: t3Id },
+    update: {},
+    create: {
+      id: t3Id,
+      domain: 'medicine',
+      type: 'patient_conversation',
+      difficulty: 'intermediate',
+      titleDe: 'Anamnesegespräch: Bauchschmerzen',
+      titleTr: 'Öykü Alma: Karın Ağrısı',
+      descriptionDe: 'Sie führen ein Anamnesegespräch mit Frau Müller (52 J.), die über Bauchschmerzen klagt. Erfragen Sie die aktuelle Anamnese in laienverständlicher Sprache. Reagieren Sie flexibel auf Patientenfragen!',
+      descriptionTr: 'Bayan Müller (52 yaş) ile karın ağrısı şikayeti olan bir öykü görüşmesi yapıyorsunuz. Güncel öyküyü anlaşılır bir dille alın. Hasta sorularına esnek tepki verin!',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 3: ARZT-PATIENT-GESPRÄCH (20 Minuten)\n\nDEINE ROLLE: Du spielst die Patientin Frau Müller, 52 Jahre. Du sprichst als Laie, NICHT in Fachsprache.\n\nPATIENTENINFORMATIONEN:\n- Name: Sabine Müller, 52 Jahre\n- Hauptbeschwerde: Bauchschmerzen seit 3 Tagen, rechter Oberbauch\n- Schmerzcharakter: Krampfartig, kommt in Wellen, besonders nach dem Essen\n- Ausstrahlung: Manchmal in die rechte Schulter\n- Übelkeit: Ja, besonders nach fettigem Essen\n- Erbrechen: Einmal gestern\n- Fieber: Leicht erhöht (37.8\u00b0C)\n- Stuhlgang: Normal, kein Blut\n- Vorerkrankungen: Bluthochdruck seit 5 Jahren\n- Medikamente: Ramipril 5mg\n- Allergien: Penicillin (Hautausschlag)\n- Familienanamnese: Mutter hatte Gallensteine\n- Ernährung: Isst gerne fettig, wenig Gemüse\n- Alkohol: Gelegentlich ein Glas Wein\n- Rauchen: Nein\n- Sozial: Verheiratet, 2 Kinder, Büroangestellte\n\nDEINE ANGST/SORGE:\n- \"Ist das was Schlimmes? Meine Nachbarin hatte auch solche Schmerzen und wurde operiert.\"\n- \"Muss ich ins Krankenhaus?\"\n\nWICHTIG:\n- Antworte immer als Patientin in einfacher Sprache\n- Stelle Zwischenfragen und äußere Sorgen MITTEN im Gespräch\n- Gib Informationen nur preis, wenn direkt gefragt\n- Wenn der Arzt Fachbegriffe nutzt, frage: \"Was bedeutet das?\"\n- Erwähne die Penicillin-Allergie NUR wenn nach Allergien gefragt wird`,
+      evaluationCriteria: JSON.stringify([]),
+      checklist: JSON.stringify([
+        { id: 'anam-greeting', textDe: 'Angemessene Begrüßung und Vorstellung', category: 'Gesprächsführung', weight: 1 },
+        { id: 'anam-chief', textDe: 'Hauptbeschwerde systematisch erfragt', category: 'Anamnese', weight: 3 },
+        { id: 'anam-pain', textDe: 'Schmerzanamnese vollständig (Lokalisation, Charakter, Intensität)', category: 'Anamnese', weight: 3 },
+        { id: 'anam-history', textDe: 'Vorerkrankungen und Medikamente erfragt', category: 'Anamnese', weight: 2 },
+        { id: 'anam-allergy', textDe: 'Allergien erfragt', category: 'Anamnese', weight: 3 },
+        { id: 'anam-family', textDe: 'Familienanamnese erfragt', category: 'Anamnese', weight: 1 },
+        { id: 'anam-social', textDe: 'Sozial- und Genussmittelanamnese erfragt', category: 'Anamnese', weight: 1 },
+        { id: 'anam-patient-lang', textDe: 'Laienverständliche Sprache verwendet (KEINE Fachsprache)', category: 'Sprache', weight: 3 },
+        { id: 'anam-flexibility', textDe: 'Auf Patientenfragen sofort eingegangen', category: 'Gesprächsführung', weight: 3 },
+        { id: 'anam-empathy', textDe: 'Empathisches Verhalten und Beruhigung', category: 'Empathie', weight: 2 },
+      ]),
+      maxTurns: 12,
+    },
+  });
 
-WICHTIG:
-- Du bist ängstlich und fragst: "Tut das weh?", "Ist das normal?", "Was bedeutet das?"
-- Du verstehst Fachbegriffe nicht, bitte um einfache Erklärungen
-- Du bist kooperativ, aber brauchst Beruhigung
-- Antworte in einfacher Sprache als ältere Patientin`,
-      evaluationCriteria: JSON.stringify([
-        { key: 'fachsprache', label_de: 'Fachsprache', label_tr: 'Tıbbi Terminoloji', weight: 2 },
-        { key: 'struktur', label_de: 'Struktur', label_tr: 'Yapı', weight: 2 },
-        { key: 'empathie', label_de: 'Empathie', label_tr: 'Empati', weight: 4 },
+  // Teil 4: Dokumentation
+  const t4Id = 'fsp-teil4-dokumentation';
+  await prisma.simulationTemplate.upsert({
+    where: { id: t4Id },
+    update: {},
+    create: {
+      id: t4Id,
+      domain: 'medicine',
+      type: 'documentation',
+      difficulty: 'intermediate',
+      titleDe: 'Dokumentation: Anamnesebogen ausfüllen',
+      titleTr: 'Dokümantasyon: Anamnez Formu Doldurma',
+      descriptionDe: 'Füllen Sie basierend auf dem vorangegangenen Anamnesegespräch den Anamnesebogen aus. Notieren Sie: Aktuelle Anamnese (ganze Sätze auf Seite 1), Vorerkrankungen, Allergien, Sozialanamnese, Verdachtsdiagnose (Fachsprache!) und Untersuchungsanforderungen.',
+      descriptionTr: 'Önceki öykü görüşmesine dayanarak anamnez formunu doldurun. Not edin: Güncel öykü (1. sayfada tam cümleler), önceki hastalıklar, alerjiler, sosyal öykü, ön tanı (tıbbi terimlerle!) ve tetkik istemleri.',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 4: DOKUMENTATION (25 Minuten)\n\nDer Kandidat soll einen Anamnesebogen basierend auf einem Patientengespräch ausfüllen.\n\nGib dem Kandidaten diese Aufgabe:\n\"Sie haben gerade ein Anamnesegespräch mit Frau Müller (52 J.) geführt, die über krampfartige Bauchschmerzen im rechten Oberbauch klagt, besonders nach dem Essen. Sie hatte einmal Erbrechen, leichtes Fieber und eine Penicillin-Allergie. Vorerkrankung: Hypertonie.\n\nFüllen Sie bitte den Anamnesebogen aus:\n1. Patientendaten\n2. Aktuelle Anamnese (ganze Sätze!)\n3. Vorerkrankungen, Medikation\n4. Allergien/Unverträglichkeiten\n5. Sozialanamnese, Genussmittel\n6. Familienanamnese\n7. Verdachtsdiagnose(n) - IN FACHSPRACHE\n8. Untersuchungsanforderungen\"\n\nBewerte die Antworten auf:\n- Vollständigkeit der Dokumentation\n- Aktuelle Anamnese in ganzen Sätzen (Seite 1)\n- Ab Seite 2: Stichpunkte erlaubt (Zeitgewinn)\n- Verdachtsdiagnose in FACHSPRACHE\n- Keine Übersetzung der Patientenangaben in Fachsprache bei der Anamnese\n- Korrekte Zuordnung der Informationen`,
+      evaluationCriteria: JSON.stringify([]),
+      checklist: JSON.stringify([
+        { id: 'doc-patient-data', textDe: 'Patientendaten vollständig', category: 'Dokumentation', weight: 1 },
+        { id: 'doc-current-full-sentences', textDe: 'Aktuelle Anamnese in ganzen Sätzen', category: 'Dokumentation', weight: 3 },
+        { id: 'doc-completeness', textDe: 'Alle relevanten Informationen dokumentiert', category: 'Dokumentation', weight: 3 },
+        { id: 'doc-diagnosis', textDe: 'Verdachtsdiagnose in Fachsprache', category: 'Fachsprache', weight: 3 },
+        { id: 'doc-no-translation', textDe: 'Patientenangaben NICHT in Fachsprache übersetzt', category: 'Fachsprache', weight: 2 },
+        { id: 'doc-exam-requests', textDe: 'Untersuchungsanforderungen korrekt', category: 'Dokumentation', weight: 2 },
+        { id: 'doc-structure', textDe: 'Klare Struktur und Zuordnung', category: 'Struktur', weight: 2 },
       ]),
       maxTurns: 8,
     },
   });
 
-  const template3Id = 'c3d4e5f6-a7b8-9012-cdef-123456789012';
+  // Teil 5: Textverständnis
+  const t5Id = 'fsp-teil5-textverstaendnis';
   await prisma.simulationTemplate.upsert({
-    where: { id: template3Id },
+    where: { id: t5Id },
     update: {},
     create: {
-      id: template3Id,
-      domain: 'nursing',
-      type: 'patient_conversation',
+      id: t5Id,
+      domain: 'medicine',
+      type: 'comprehension',
+      difficulty: 'intermediate',
+      titleDe: 'Textverständnis: Arztbrief und Befunde',
+      titleTr: 'Metin Anlama: Epikriz ve Bulgular',
+      descriptionDe: 'Sie erhalten einen Arztbrief/Befundbericht. Beantworten Sie die Fragen dazu kurz und präzise. Zusätzlich erhalten Sie telefonische Informationen, die Sie korrekt erfassen müssen.',
+      descriptionTr: 'Bir epikriz/bulgu raporu alacaksınız. Soruları kısa ve öz yanıtlayın. Ayrıca telefonla verilen bilgileri doğru bir şekilde kaydetmeniz gerekecek.',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 5: TEXTVERSTÄNDNIS (20 Minuten)\n\nGib dem Kandidaten folgenden ARZTBRIEF:\n\n---\nEntlassungsbrief\nPat.: Müller, Hans, geb. 15.03.1958\nStation: Innere Medizin\nAufnahme: 10.01.2026 | Entlassung: 17.01.2026\n\nDiagnosen:\n1. Akute Cholezystitis bei Cholelithiasis\n2. Art. Hypertonie\n3. Diabetes mellitus Typ 2\n\nAnamnese: Der Patient stellte sich mit seit 3 Tagen bestehenden rechtsseitigen Oberbauchschmerzen vor. Die Schmerzen verstärkten sich postprandial. Begleitend bestanden Übelkeit und einmaliges Erbrechen. Temp. bei Aufnahme 38.2\u00b0C.\n\nBefunde: Sono Abdomen: Gallenblase verdickt (5mm), multiple Konkremente, pericholezystitisches Ödem. Labor: Leukozyten 14.200/\u00b5l, CRP 85 mg/l, GGT 120 U/l, AP 180 U/l.\n\nTherapie: Laparoskopische Cholezystektomie am 12.01.2026 ohne Komplikationen. Postop. Verlauf unauffällig.\n\nMedikation bei Entlassung: Ramipril 5mg 1-0-0, Metformin 1000mg 1-0-1, Ibuprofen 400mg bei Bedarf.\n\nWeitere Empfehlungen: Wiedervorstellung beim Hausarzt in 1 Woche, fädenziehende Nachsorge.\n---\n\nStelle dann 3 Fragen zum Brief:\n1. \"Welche Hauptdiagnose führte zur stationären Aufnahme?\"\n2. \"Welche Befunde bestätigten die Diagnose?\"\n3. \"Welche Therapie wurde durchgeführt und wie war der Verlauf?\"\n\nDANN simuliere einen Telefonanruf:\n\"Hier spricht Dr. Weber vom Labor. Die histologische Untersuchung der Gallenblase von Herrn Müller zeigt eine chronische Cholezystitis mit Cholesterolsteinen. Kein Hinweis auf Malignität. Der Befund ist unauffällig.\"\n\nFrage: \"Bitte fassen Sie den Telefonanruf zusammen.\"\n\nBewerte: Richtiges Verständnis, kurze präzise Antworten, keine überflüssigen Informationen.`,
+      evaluationCriteria: JSON.stringify([]),
+      checklist: JSON.stringify([
+        { id: 'comp-q1-correct', textDe: 'Frage 1 korrekt beantwortet', category: 'Textverständnis', weight: 2 },
+        { id: 'comp-q2-correct', textDe: 'Frage 2 korrekt beantwortet', category: 'Textverständnis', weight: 2 },
+        { id: 'comp-q3-correct', textDe: 'Frage 3 korrekt beantwortet', category: 'Textverständnis', weight: 2 },
+        { id: 'comp-concise', textDe: 'Antworten kurz und präzise (kein überflüssiger Text)', category: 'Präzision', weight: 2 },
+        { id: 'comp-phone', textDe: 'Telefonanruf korrekt zusammengefasst', category: 'Akustisches Verständnis', weight: 3 },
+        { id: 'comp-terminology', textDe: 'Korrekte medizinische Terminologie verwendet', category: 'Fachsprache', weight: 2 },
+      ]),
+      maxTurns: 8,
+    },
+  });
+
+  // Teil 6: Arzt-Arzt-Gespräch
+  const t6Id = 'fsp-teil6-arzt-arzt';
+  await prisma.simulationTemplate.upsert({
+    where: { id: t6Id },
+    update: {},
+    create: {
+      id: t6Id,
+      domain: 'medicine',
+      type: 'doctor_conversation',
       difficulty: 'advanced',
-      titleDe: 'Sturzprophylaxe: Beratungsgespräch mit Angehörigen',
-      titleTr: 'Düşme Profilaksisi: Yakınlarla Danışma Görüşmesi',
-      descriptionDe: 'Die Tochter von Herrn Weber (82 Jahre) möchte wissen, wie sie zu Hause Stürze vermeiden kann. Ihr Vater ist nach einem Oberschenkelhalsbruch entlassen worden. Beraten Sie die Tochter umfassend zur Sturzprophylaxe.',
-      descriptionTr: 'Bay Weber\'in (82 yaşında) kızı, evde düşmeleri nasıl önleyebileceğini öğrenmek istiyor. Babası femur boyun kırığı sonrası taburcu edildi. Kızını düşme profilaksisi hakkında kapsamlı bir şekilde bilgilendirin.',
-      systemPrompt: `Du bist ein Prüfer für die Pflegeexamensprüfung in Deutschland. Der Kandidat führt ein Beratungsgespräch mit der Tochter eines Patienten zur Sturzprophylaxe.
-
-DEINE ROLLE: Du spielst die Tochter von Herrn Weber, Frau Weber-Klein, 55 Jahre alt. Du bist besorgt um deinen Vater und möchtest alles wissen.
-
-INFORMATIONEN:
-- Dein Vater: Herr Weber, 82 Jahre
-- Diagnose: Oberschenkelhalsbruch (Femurfraktur), OP erfolgt, wird morgen entlassen
-- Wohnsituation: Einfamilienhaus, Treppen, Badewanne (kein Duschsitz), Teppiche
-- Vorerkrankungen Vater: Diabetes Typ 2, Sehschwäche (Grauer Star), Schwindel
-- Medikamente Vater: Metformin, Blutdrucksenker, Schlaftabletten
-- Du arbeitest Vollzeit und kannst nicht 24h da sein
-
-DEINE FRAGEN/SORGEN:
-- "Wie kann ich die Wohnung sicherer machen?"
-- "Welche Hilfsmittel braucht er?"
-- "Was soll ich tun, wenn er wieder stürzt?"
-- "Kann er seine Medikamente selbst nehmen?"
-- "Gibt es Übungen, die er machen kann?"
-
-WICHTIG:
-- Stelle gezielte Nachfragen
-- Zeige Sorge aber auch Bereitschaft zur Mitarbeit
-- Reagiere dankbar auf gute Erklärungen`,
-      evaluationCriteria: JSON.stringify([
-        { key: 'fachsprache', label_de: 'Fachsprache', label_tr: 'Tıbbi Terminoloji', weight: 3 },
-        { key: 'struktur', label_de: 'Struktur', label_tr: 'Yapı', weight: 3 },
-        { key: 'empathie', label_de: 'Empathie', label_tr: 'Empati', weight: 3 },
+      titleDe: 'Arzt-Arzt-Gespräch: Fallvorstellung',
+      titleTr: 'Doktor-Doktor Görüşmesi: Vaka Sunumu',
+      descriptionDe: 'Stellen Sie der Oberärztin/dem Oberarzt einen Patientenfall in medizinischer Fachsprache vor. Hier ist die Fachsprache ausdrücklich gefordert. Medizinische Fehler werden NICHT bewertet – nur Ihre sprachliche Kompetenz.',
+      descriptionTr: 'Başasistana bir hasta vakasını tıbbi terminoloji ile sunun. Burada tıbbi terimler açıkça beklenir. Tıbbi hatalar değerlendirilmez – sadece dil yetkinliğiniz.',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 6: ARZT-ARZT-GESPRÄCH (15-20 Minuten)\n\nDEINE ROLLE: Du spielst die Oberärztin Dr. Schmidt. Du erwartest eine strukturierte Fallvorstellung IN FACHSPRACHE.\n\nGib dem Kandidaten die Aufgabe:\n\"Bitte stellen Sie mir den Fall von Frau Müller vor. Sie hatten vorhin das Anamnesegespräch mit ihr. Berichten Sie mir bitte über die Patientin – in Fachsprache, wie Sie es unter Kollegen tun würden.\"\n\nERWARTETE INFORMATIONEN (in Fachsprache):\n- Patientenvorstellung: \"52-jährige Patientin, Vorstellung mit seit 3 Tagen bestehenden rechtsseitigen Oberbauchschmerzen...\"\n- Anamnese: Kolikartige Beschwerden, postprandiale Verstärkung, Ausstrahlung in die rechte Schulter\n- Begleitsymptome: Nausea, einmaliges Emesis, subfebrile Temperatur\n- Vorerkrankungen: Arterielle Hypertonie\n- Medikation: Ramipril 5mg\n- Allergien: Penicillinallergie\n- Verdachtsdiagnose: V.a. Cholezystolithiasis/akute Cholezystitis\n- Vorgeschlagene Diagnostik: Sonographie Abdomen, Labor (BB, CRP, Lipase, GGT, AP, Bilirubin)\n\nDEINE RÜCKFRAGEN:\n- \"Welche Differentialdiagnosen kämen noch in Frage?\"\n- \"Welche Bildgebung würden Sie anordnen?\"\n- \"Wie würden Sie die Patientin weiter behandeln?\"\n\nWICHTIG:\n- Bewerte NUR die sprachliche Kompetenz, NICHT das medizinische Wissen\n- Fachsprache ist hier GEFORDERT\n- Bewerte Flüssigkeit, Strukturiertheit, korrekten Einsatz von Fachtermini`,
+      evaluationCriteria: JSON.stringify([]),
+      checklist: JSON.stringify([
+        { id: 'doc-conv-structure', textDe: 'Strukturierte Fallvorstellung', category: 'Struktur', weight: 3 },
+        { id: 'doc-conv-terminology', textDe: 'Korrekte medizinische Fachsprache', category: 'Fachsprache', weight: 3 },
+        { id: 'doc-conv-fluency', textDe: 'Flüssiges Sprechen', category: 'Sprachkompetenz', weight: 2 },
+        { id: 'doc-conv-completeness', textDe: 'Vollständige Fallinformationen', category: 'Vollständigkeit', weight: 2 },
+        { id: 'doc-conv-questions', textDe: 'Fachfragen verständlich beantwortet', category: 'Kommunikation', weight: 2 },
+        { id: 'doc-conv-diagnosis', textDe: 'Verdachtsdiagnose in korrekter Fachsprache', category: 'Fachsprache', weight: 3 },
       ]),
       maxTurns: 10,
     },
   });
 
-  const template4Id = 'd4e5f6a7-b8c9-0123-defa-234567890123';
-  await prisma.simulationTemplate.upsert({
-    where: { id: template4Id },
-    update: {},
-    create: {
-      id: template4Id,
-      domain: 'nursing',
-      type: 'written_task',
-      difficulty: 'intermediate',
-      titleDe: 'Pflegeplanung: Diabetes mellitus Typ 2',
-      titleTr: 'Bakım Planlaması: Diabetes Mellitus Tip 2',
-      descriptionDe: 'Erstellen Sie eine strukturierte Pflegeplanung für Herrn Yılmaz (58 Jahre), der mit Diabetes mellitus Typ 2 diagnostiziert wurde. Berücksichtigen Sie: Pflegediagnosen, Pflegeziele, Pflegemaßnahmen und Evaluation.',
-      descriptionTr: 'Bay Yılmaz (58 yaşında) için Diabetes Mellitus Tip 2 tanısı konulmuş yapılandırılmış bir bakım planı oluşturun. Şunları göz önünde bulundurun: Hemşirelik tanıları, bakım hedefleri, bakım önlemleri ve değerlendirme.',
-      systemPrompt: `Du bist ein Prüfer für die schriftliche Pflegeexamensprüfung in Deutschland. Der Kandidat soll eine Pflegeplanung für einen Patienten mit Diabetes mellitus Typ 2 erstellen.
-
-DEINE ROLLE: Du bist der Prüfer. Gib dem Kandidaten die Fallbeschreibung und bewerte seine schriftlichen Antworten.
-
-FALLBESCHREIBUNG:
-Patient: Herr Yılmaz, 58 Jahre, Diabetes mellitus Typ 2 seit 3 Monaten diagnostiziert
-- BMI: 32 (Adipositas Grad I)
-- HbA1c: 8.2% (Zielwert < 7%)
-- Medikation: Metformin 1000mg 2x täglich
-- Beruf: Büroangestellter, wenig Bewegung
-- Ernährung: Unregelmäßig, viel Süßes und Fast Food
-- Wissensstand: Gering, versteht die Erkrankung kaum
-- Motivation: Ambivalent, hat Angst vor Insulin
-- Soziales: Verheiratet, 2 Kinder, Familie kocht traditionell türkisch
-- Fußpflege: Vernachlässigt, hat rissige Haut an den Füßen
-
-ERWARTETE INHALTE DER PFLEGEPLANUNG:
-1. Pflegediagnosen (z.B. Wissensdefizit, Ernährungsproblem, Bewegungsmangel)
-2. Pflegeziele (SMART formuliert)
-3. Pflegemaßnahmen (konkret und patientenorientiert)
-4. Evaluation (Messkriterien)
-
-WICHTIG:
-- Frage nach den einzelnen Schritten der Pflegeplanung
-- Bewerte die Antworten des Kandidaten nach Vollständigkeit und Fachlichkeit
-- Gib konstruktives Feedback nach jedem Schritt
-- Wenn der Kandidat etwas vergisst, weise darauf hin`,
-      evaluationCriteria: JSON.stringify([
-        { key: 'fachsprache', label_de: 'Fachsprache', label_tr: 'Tıbbi Terminoloji', weight: 4 },
-        { key: 'struktur', label_de: 'Struktur', label_tr: 'Yapı', weight: 4 },
-        { key: 'empathie', label_de: 'Empathie', label_tr: 'Empati', weight: 1 },
-      ]),
-      maxTurns: 10,
-    },
-  });
-
-  const template5Id = 'e5f6a7b8-c9d0-1234-efab-345678901234';
-  await prisma.simulationTemplate.upsert({
-    where: { id: template5Id },
-    update: {},
-    create: {
-      id: template5Id,
-      domain: 'nursing',
-      type: 'oral_exam',
-      difficulty: 'intermediate',
-      titleDe: 'Übergabegespräch: Schichtwechsel auf der Station',
-      titleTr: 'Devir Teslim: İstasyonda Vardiya Değişimi',
-      descriptionDe: 'Sie übergeben am Ende Ihrer Schicht drei Patienten an die Kollegin der Spätschicht. Führen Sie eine strukturierte Übergabe durch, die alle relevanten Informationen enthält: Diagnosen, aktuelle Situation, durchgeführte Maßnahmen, offene Aufgaben.',
-      descriptionTr: 'Vardiya sonunda üç hastayı akşam vardiyası meslektaşınıza devrediyorsunuz. Tüm ilgili bilgileri içeren yapılandırılmış bir devir teslim yapın: Tanılar, mevcut durum, yapılan işlemler, açık görevler.',
-      systemPrompt: `Du bist ein Prüfer für die Pflegeexamensprüfung in Deutschland. Der Kandidat führt ein Übergabegespräch am Schichtwechsel durch.
-
-DEINE ROLLE: Du spielst die Kollegin der Spätschicht, Schwester Anna. Du stellst Rückfragen und erwartest eine strukturierte Übergabe nach dem SBAR-Schema.
-
-PATIENTEN AUF DER STATION:
-1. Zimmer 201, Frau Berger, 70 Jahre:
-   - Diagnose: Pneumonie (Lungenentzündung)
-   - Aktuell: Fieber 38.5°C, Antibiotikum i.v. seit gestern
-   - Besonderheit: Sauerstoffsättigung schwankt (92-95%)
-   - Offene Aufgabe: Nächste Vitalzeichenkontrolle um 16:00
-
-2. Zimmer 204, Herr Klein, 45 Jahre:
-   - Diagnose: Appendektomie (Blinddarm-OP) heute morgen
-   - Aktuell: Wach, leichte Schmerzen (VAS 4), trinkt schluckweise
-   - Besonderheit: Hat Diabetes, BZ muss um 17:00 kontrolliert werden
-   - Offene Aufgabe: Erstmobilisation heute Abend geplant
-
-3. Zimmer 208, Frau Nowak, 88 Jahre:
-   - Diagnose: Schenkelhalsfraktur, OP morgen geplant
-   - Aktuell: Bettlägerig, ängstlich, verweigert manchmal Essen
-   - Besonderheit: Dekubitusrisiko hoch (Braden-Score 14), Demenz
-   - Offene Aufgabe: OP-Aufklärung durch Arzt steht noch aus
-
-DEINE RÜCKFRAGEN:
-- "Welche Medikamente laufen gerade bei Frau Berger?"
-- "Hat Herr Klein schon Schmerzmittel bekommen?"
-- "Wie war die Lagerung bei Frau Nowak heute?"
-- "Gibt es Besonderheiten für die Nacht?"
-
-WICHTIG:
-- Erwarte eine strukturierte Übergabe (SBAR oder ähnlich)
-- Stelle gezielt Rückfragen zu fehlenden Informationen
-- Sei kollegial aber professionell`,
-      evaluationCriteria: JSON.stringify([
-        { key: 'fachsprache', label_de: 'Fachsprache', label_tr: 'Tıbbi Terminoloji', weight: 3 },
-        { key: 'struktur', label_de: 'Struktur', label_tr: 'Yapı', weight: 4 },
-        { key: 'empathie', label_de: 'Empathie', label_tr: 'Empati', weight: 2 },
-      ]),
-      maxTurns: 10,
-    },
-  });
-
-  // Seed glossary terms
+  // ============================================
+  // Medizinisches Glossar für FSP
+  // ============================================
   const glossaryTerms = [
-    { termDe: 'Anamnese', termTr: 'Öykü alma', contextDe: 'Systematische Befragung des Patienten zu seiner Krankengeschichte', contextTr: 'Hastanın tıbbi geçmişi hakkında sistematik sorgulama' },
-    { termDe: 'Schmerzskala', termTr: 'Ağrı skalası', contextDe: 'Numerische Bewertungsskala von 0-10 zur Erfassung der Schmerzintensität', contextTr: 'Ağrı yoğunluğunu değerlendirmek için 0-10 arası sayısal derecelendirme ölçeği' },
-    { termDe: 'Vitalzeichen', termTr: 'Vital bulgular', contextDe: 'Blutdruck, Puls, Temperatur, Atemfrequenz', contextTr: 'Kan basıncı, nabız, ateş, solunum hızı' },
-    { termDe: 'Blutdruck', termTr: 'Kan basıncı (tansiyon)', contextDe: 'Systolischer und diastolischer Druck in mmHg', contextTr: 'Sistolik ve diastolik basınç, mmHg cinsinden ölçülür' },
-    { termDe: 'Puls', termTr: 'Nabız', contextDe: 'Herzfrequenz pro Minute', contextTr: 'Dakikadaki kalp atış sayısı' },
-    { termDe: 'Schmerzlokalisation', termTr: 'Ağrı lokalizasyonu', contextDe: 'Genaue Stelle, an der der Schmerz empfunden wird', contextTr: 'Ağrının tam olarak hissedildiği yer' },
-    { termDe: 'Schmerzcharakter', termTr: 'Ağrı karakteri', contextDe: 'Art des Schmerzes: stechend, brennend, dumpf, ziehend', contextTr: 'Ağrının türü: bıçak gibi, yanıcı, künt, çekici' },
-    { termDe: 'Vorerkrankungen', termTr: 'Önceki hastalıklar', contextDe: 'Bereits bekannte Erkrankungen des Patienten', contextTr: 'Hastanın bilinen mevcut hastalıkları' },
-    { termDe: 'Medikation', termTr: 'İlaç tedavisi', contextDe: 'Aktuell eingenommene Medikamente', contextTr: 'Şu anda kullanılan ilaçlar' },
-    { termDe: 'Allergie', termTr: 'Alerji', contextDe: 'Überempfindlichkeitsreaktion des Immunsystems', contextTr: 'Bağışıklık sisteminin aşırı duyarlılık reaksiyonu' },
-    { termDe: 'Mobilisation', termTr: 'Mobilizasyon', contextDe: 'Förderung der Beweglichkeit des Patienten', contextTr: 'Hastanın hareketliliğinin desteklenmesi' },
-    { termDe: 'Pflegeplanung', termTr: 'Bakım planlaması', contextDe: 'Systematische Planung der pflegerischen Maßnahmen', contextTr: 'Hemşirelik önlemlerinin sistematik planlanması' },
-    { termDe: 'Dekubitus', termTr: 'Bası yarası', contextDe: 'Druckgeschwür durch langes Liegen', contextTr: 'Uzun süre yatmaktan kaynaklanan basınç ülseri' },
-    { termDe: 'Thromboseprophylaxe', termTr: 'Tromboz profilaksisi', contextDe: 'Maßnahmen zur Vorbeugung von Blutgerinnseln', contextTr: 'Kan pıhtılarını önleme tedbirleri' },
-    { termDe: 'Sturzprophylaxe', termTr: 'Düşme profilaksisi', contextDe: 'Maßnahmen zur Vermeidung von Stürzen', contextTr: 'Düşmeleri önleme tedbirleri' },
-    { termDe: 'Wundversorgung', termTr: 'Yara bakımı', contextDe: 'Pflegerische Versorgung und Behandlung von Wunden', contextTr: 'Yaraların hemşirelik bakımı ve tedavisi' },
-    { termDe: 'Dokumentation', termTr: 'Dokümantasyon', contextDe: 'Schriftliche Erfassung aller pflegerischen Maßnahmen', contextTr: 'Tüm hemşirelik önlemlerinin yazılı olarak kayıt altına alınması' },
-    { termDe: 'Übergabe', termTr: 'Devir teslim', contextDe: 'Informationsweitergabe zwischen Pflegekräften bei Schichtwechsel', contextTr: 'Vardiya değişiminde hemşireler arasındaki bilgi aktarımı' },
-    { termDe: 'Patientenverfügung', termTr: 'Hasta vasiyetnamesi', contextDe: 'Schriftliche Vorausverfügung über medizinische Maßnahmen', contextTr: 'Tıbbi önlemler hakkında yazılı ön talimatname' },
-    { termDe: 'Pflegediagnose', termTr: 'Hemşirelik tanısı', contextDe: 'Klinische Beurteilung der Reaktion eines Patienten auf Gesundheitsprobleme', contextTr: 'Hastanın sağlık sorunlarına verdiği tepkinin klinik değerlendirmesi' },
+    // Anatomie
+    { termDe: 'Abdomen', termTr: 'Karın', contextDe: 'Bauch / Bauchraum (lat.)', contextTr: 'Karın bölgesi' },
+    { termDe: 'Thorax', termTr: 'Göğüs', contextDe: 'Brustkorb (lat.)', contextTr: 'Göğüs kafesi' },
+    { termDe: 'Hepar', termTr: 'Karaciğer', contextDe: 'Leber (griech.)', contextTr: 'Karaciğer' },
+    { termDe: 'Antebrachium', termTr: 'Dirsek-bilek arası', contextDe: 'Unterarm (lat.)', contextTr: 'Ön kol' },
+    { termDe: 'Extremität', termTr: 'Uzuv', contextDe: 'Gliedmaße (Arm oder Bein)', contextTr: 'Kol veya bacak' },
+    // Symptome
+    { termDe: 'Cephalgie', termTr: 'Baş ağrısı', contextDe: 'Kopfschmerzen (Fachsprache)', contextTr: 'Baş ağrısı (tıbbi terim)' },
+    { termDe: 'Dyspnoe', termTr: 'Nefes darlığı', contextDe: 'Atemnot / Luftnot', contextTr: 'Nefes alamama, solunum güçlüğü' },
+    { termDe: 'Emesis', termTr: 'Kusma', contextDe: 'Erbrechen (Fachsprache)', contextTr: 'Kusma (tıbbi terim)' },
+    { termDe: 'Nausea', termTr: 'Bulantı', contextDe: 'Übelkeit (Fachsprache)', contextTr: 'Mide bulanması' },
+    { termDe: 'Obstipation', termTr: 'Kabızlık', contextDe: 'Verstopfung (Stuhlgang)', contextTr: 'Dışkılama güçlüğü' },
+    // Diagnosen
+    { termDe: 'Hypertonie', termTr: 'Yüksek tansiyon', contextDe: 'Bluthochdruck (art. Hypertonie)', contextTr: 'Yüksek kan basıncı' },
+    { termDe: 'Cholezystitis', termTr: 'Safra kesesi iltihabı', contextDe: 'Gallenblasenentzündung', contextTr: 'Safra kesesi yangısı' },
+    { termDe: 'Pneumonie', termTr: 'Zatürre', contextDe: 'Lungenentzündung', contextTr: 'Akciğer iltihabı' },
+    { termDe: 'Appendizitis', termTr: 'Apandisit', contextDe: 'Blinddarmentzündung', contextTr: 'Apandis iltihabı' },
+    { termDe: 'Fraktur', termTr: 'Kırık', contextDe: 'Knochenbruch', contextTr: 'Kemik kırığı' },
+    // Verfahren
+    { termDe: 'Cholezystektomie', termTr: 'Safra kesesi ameliyatı', contextDe: 'Operative Entfernung der Gallenblase', contextTr: 'Safra kesesi alınması' },
+    { termDe: 'Laparoskopie', termTr: 'Karın dürbini', contextDe: 'Bauchspiegelung (minimalinvasiv)', contextTr: 'Karın içi görüntüleme' },
+    { termDe: 'Sonographie', termTr: 'Ultrason', contextDe: 'Ultraschalluntersuchung', contextTr: 'Ses dalgalarıyla görüntüleme' },
+    // Anamnese
+    { termDe: 'Anamnese', termTr: 'Öykü alma', contextDe: 'Systematische Befragung des Patienten', contextTr: 'Hastanın tıbbi geçmişinin sorgulanması' },
+    { termDe: 'Verdachtsdiagnose', termTr: 'Ön tanı', contextDe: 'Vorläufige Diagnose vor Abschluss der Diagnostik', contextTr: 'Tanısal süreç tamamlanmadan önce konulan geçici tanı' },
   ];
 
   for (const term of glossaryTerms) {
@@ -274,7 +220,7 @@ WICHTIG:
     });
   }
 
-  console.log('Seed completed successfully!');
+  console.log('FSP-Assistent Seed completed successfully!');
 }
 
 main()

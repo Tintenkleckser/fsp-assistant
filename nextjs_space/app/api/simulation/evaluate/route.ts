@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     const hasChecklist = checklist.length > 0;
     const hasDocumentation = !!(documentation || sim?.documentation);
     const docText = documentation || sim?.documentation || '';
-    const requiresDoc = simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation';
+    const requiresDoc = simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation' || simType === 'comprehension';
 
     // RAG context
     let handbookContext = '';
@@ -55,24 +55,38 @@ export async function POST(request: NextRequest) {
       ).join('\n')}\n`;
     }
 
-    // Type-specific evaluation instructions
+    // Type-specific evaluation instructions for FSP (Fachsprachenprüfung)
     const typeInstructions: Record<string, string> = {
-      patient_conversation: `WICHTIG FÜR PATIENTENGESPRÄCH:
+      patient_conversation: `WICHTIG FÜR ARZT-PATIENT-GESPRÄCH (FSP Teil 3):
 - Medizinische Fachsprache gegenüber dem Patienten ist ein FEHLER und muss negativ bewertet werden.
-- Bewerte stattdessen: Verständliche Sprache, aktives Zuhören, Empathie, Informationserhebung.
-- Prüfe, ob der Kandidat Auffälligkeiten des Patienten (z.B. Ängstlichkeit, kognitive Ausfälle, Depression) erkannt hat.
-- Falls Dokumentation vorhanden: Bewerte Vollständigkeit und ob erkannte Auffälligkeiten dokumentiert wurden.`,
-      oral_exam: `WICHTIG FÜR MÜNDLICHE PRÜFUNG:
-- Medizinische Fachsprache ist ERWÜNSCHT und wird positiv bewertet.
-- Bewerte: Fachwissen, korrekte Terminologie, logische Argumentation, Vollständigkeit.`,
-      written_task: `WICHTIG FÜR SCHRIFTLICHE AUFGABE:
-- Medizinische Fachsprache ist ERWÜNSCHT und wird positiv bewertet.
-- Bewerte: Strukturierte Dokumentation, Fachterminologie, Pflegeplanung, Vollständigkeit.
-- Falls Dokumentation vorhanden: Bewerte Struktur, Fachbegriffe und Vollständigkeit.`,
-      documentation: `WICHTIG FÜR PFLEGEDOKUMENTATION:
-- Medizinische Fachsprache ist ERWÜNSCHT und NOTWENDIG.
-- Die Bewertung fokussiert auf die eingereichte Pflegedokumentation.
-- Bewerte: Pflegeanamnese, Pflegeziele, geplante Maßnahmen, Ressourcen, Evaluation, Fachterminologie, Struktur.`,
+- Bewerte: Laienverständliche Sprache, aktives Zuhören, Empathie, systematische Anamneseerhebung.
+- Prüfe, ob der Kandidat auf Patientenfragen SOFORT eingegangen ist (nicht ans Ende geschoben).
+- Prüfe, ob Allergien, Vorerkrankungen, Medikation, Sozialanamnese erfragt wurden.`,
+      vocab_test: `WICHTIG FÜR VERSTÄNDNISTEST (FSP Teil 1):
+- Bewerte Übersetzungen, NICHT Erklärungen.
+- Fachsprache → Patientensprache: Einfache deutsche Wörter erwartet.
+- Deutsch → Latein/Griechisch: Korrekte Fachterminologie erwartet.
+- Nur EINE Übersetzung pro Begriff (mehrere = Punktverlust).`,
+      free_conversation: `WICHTIG FÜR FREIES GESPRÄCH (FSP Teil 2):
+- Bewerte Sprachverständnis und Ausdrucksfähigkeit.
+- Bewerte Flüssigkeit, Grammatik, Wortschatz, Kohärenz.
+- Medizinisches Wissen wird NICHT bewertet.`,
+      documentation: `WICHTIG FÜR DOKUMENTATION (FSP Teil 4):
+- Aktuelle Anamnese auf Seite 1 in GANZEN SÄTZEN (Pflicht).
+- Ab Seite 2: Stichpunkte erlaubt.
+- Patientenangaben NICHT in Fachsprache übersetzen (Anamnese ≠ Arztbrief).
+- Verdachtsdiagnose MUSS in Fachsprache sein.
+- Bewerte: Vollständigkeit, Struktur, korrekte Zuordnung.`,
+      comprehension: `WICHTIG FÜR TEXTVERSTÄNDNIS (FSP Teil 5):
+- Antworten müssen KURZ und PRÄZISE sein.
+- Überflüssig lange Antworten = Punktverlust.
+- Bewerte korrektes Verständnis der Fragen.
+- Bewerte korrekte Wiedergabe der Telefoninformationen.`,
+      doctor_conversation: `WICHTIG FÜR ARZT-ARZT-GESPRÄCH (FSP Teil 6):
+- Medizinische Fachsprache ist GEFORDERT.
+- Medizinische Fehler werden NICHT bewertet – nur Sprachkompetenz.
+- Bewerte: Strukturierte Fallvorstellung, korrekte Fachtermini, Flüssigkeit.
+- Bewerte, ob der Kandidat fachsprachlich verständlich kommuniziert.`,
     };
 
     // Documentation section
@@ -83,7 +97,7 @@ export async function POST(request: NextRequest) {
       docPromptSection = `\n\nHINWEIS: Der Kandidat hat KEINE Dokumentation erstellt. Dies ist ein erheblicher Mangel und muss in der Bewertung berücksichtigt werden.`;
     }
 
-    const evaluationPrompt = `Du bist ein erfahrener Prüfer für die Pflegeexamensprüfung in Deutschland.
+    const evaluationPrompt = `Du bist ein erfahrener Prüfer für die Fachsprachenprüfung (FSP) für ausländische Ärzte in Deutschland.
 
 Simulationstyp: ${simType === 'patient_conversation' ? 'Patientengespräch' : simType === 'oral_exam' ? 'Mündliche Prüfung' : 'Schriftliche Aufgabe'}
 Aufgabenstellung: ${template?.descriptionDe || ''}

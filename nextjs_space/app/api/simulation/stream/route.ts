@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     // RAG: Retrieve relevant handbook context based on the user message
     let handbookContext = '';
     try {
-      handbookContext = await retrieveHandbookContext(userMessage, template.domain ?? 'nursing', 3);
+      handbookContext = await retrieveHandbookContext(userMessage, template.domain ?? 'medicine', 3);
     } catch (e) {
       // Fallback: continue without handbook context
     }
