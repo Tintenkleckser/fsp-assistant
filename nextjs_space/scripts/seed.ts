@@ -7,6 +7,12 @@ async function main() {
   // Profiles are auto-created on first login via getAuthUser().
 
   // ============================================
+  // Clean up old nursing templates & glossary
+  // ============================================
+  await prisma.simulationTemplate.deleteMany({ where: { domain: 'nursing' } });
+  await prisma.glossaryTerm.deleteMany({ where: { id: { not: { startsWith: 'glossary-' } } } });
+
+  // ============================================
   // FSP Simulation Templates (6 Prüfungsteile)
   // ============================================
 
