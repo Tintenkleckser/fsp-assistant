@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/use-auth';
 import { useRouter } from 'next/navigation';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Button } from '@/components/ui/button';
-import { LayoutDashboard, BookOpen, LogOut } from 'lucide-react';
+import { LayoutDashboard, BookOpen, LogOut, MessageCircle } from 'lucide-react';
 import Link from 'next/link';
 
 export function AppHeader() {
@@ -26,6 +26,12 @@ export function AppHeader() {
                 <Link href="/dashboard" className="gap-2">
                   <LayoutDashboard className="h-4 w-4" />
                   <span className="hidden sm:inline">{t('common.dashboard')}</span>
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" asChild>
+                <Link href="/coaching" className="gap-2">
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="hidden sm:inline">Coaching</span>
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>
