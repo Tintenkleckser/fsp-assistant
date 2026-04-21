@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { GlossaryTooltip } from '@/components/glossary-tooltip';
-import { Send, User, Stethoscope, Loader2, CheckCircle2, Mic, MicOff, ChevronDown, ChevronUp, FileText, ClipboardList, AlertTriangle } from 'lucide-react';
+import { Send, User, Stethoscope, Loader2, CheckCircle2, Mic, MicOff, ChevronDown, ChevronUp, FileText, ClipboardList, AlertTriangle, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSpeechRecognition } from '@/hooks/use-speech-recognition';
+import { getTimeLimitForType } from '@/lib/topic-categories';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -42,6 +43,9 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
   const [documentation, setDocumentation] = useState('');
   const [docSaving, setDocSaving] = useState(false);
   const [requiresDoc, setRequiresDoc] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [timerActive, setTimerActive] = useState(false);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -85,6 +89,12 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
           if (Array.isArray(cl) && cl.length > 0) setChecklistItems(cl);
           const simType = data.template.type;
           setRequiresDoc(simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation' || simType === 'comprehension');
+          // Initialize countdown timer based on simulation type
+          if (data?.status !== 'completed') {
+            const limitMin = getTimeLimitForType(simType);
+            setTimeRemaining(limitMin * 60);
+            setTimerActive(true);
+          }
           // Documentation-only type: skip chat, go directly to documenting
           if (simType === 'documentation' && data?.status !== 'completed') {
             setSimStatus('documenting');
@@ -112,6 +122,54 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
   useEffect(() => {
     scrollRef?.current?.scrollTo?.({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!timerActive || timeRemaining === null || timeRemaining <= 0) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
+    timerRef.current = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev === null || prev <= 1) {
+          setTimerActive(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timerActive, timeRemaining === null]);
+
+  // Stop timer when simulation ends
+  useEffect(() => {
+    if (simStatus === 'completed' || simStatus === 'evaluating') {
+      setTimerActive(false);
+    }
+  }, [simStatus]);
+
+  // Ref to hold latest handleEndSimulation for timer auto-end
+  const handleEndRef = useRef<() => void>(() => {});
+  const autoEndTriggered = useRef(false);
+  useEffect(() => {
+    if (timeRemaining === 0 && !autoEndTriggered.current && (simStatus === 'active' || simStatus === 'documenting')) {
+      autoEndTriggered.current = true;
+      handleEndRef.current();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeRemaining, simStatus]);
+
+  // Format seconds to MM:SS
+  const formatTime = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const timerWarning = timeRemaining !== null && timeRemaining <= 300 && timeRemaining > 60;
+  const timerCritical = timeRemaining !== null && timeRemaining <= 60;
 
   const sendMessage = async () => {
     const trimmed = input?.trim?.() ?? '';
@@ -221,12 +279,14 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
   };
 
   const handleEndSimulation = async () => {
+    setTimerActive(false);
     if (requiresDoc) {
       setSimStatus('documenting');
     } else {
       await triggerEvaluation();
     }
   };
+  handleEndRef.current = handleEndSimulation;
 
   const handleSaveDocumentation = async () => {
     setDocSaving(true);
@@ -341,7 +401,19 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
 
         {/* Status Bar */}
         <div className="flex items-center justify-between py-3 border-b">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Countdown Timer */}
+            {timeRemaining !== null && (
+              <Badge
+                variant={timerCritical ? 'destructive' : timerWarning ? 'default' : 'secondary'}
+                className={`text-xs gap-1 font-mono tabular-nums ${
+                  timerCritical ? 'animate-pulse' : ''
+                } ${timerWarning && !timerCritical ? 'bg-amber-500 text-white hover:bg-amber-600' : ''}`}
+              >
+                <Clock className="h-3 w-3" />
+                {formatTime(timeRemaining)}
+              </Badge>
+            )}
             <Badge variant={remaining > 2 ? 'secondary' : 'destructive'} className="text-xs">
               {t('simulation.turnsRemaining')}: {remaining}
             </Badge>
@@ -361,6 +433,27 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
             </Button>
           )}
         </div>
+
+        {/* Time Warning Banner */}
+        {timerCritical && timeRemaining !== null && timeRemaining > 0 && (simStatus === 'active' || simStatus === 'documenting') && (
+          <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md px-3 py-2 flex items-center gap-2 text-red-700 dark:text-red-400 text-xs">
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="font-medium">
+              {lang === 'tr'
+                ? `Son ${Math.ceil(timeRemaining / 60)} dakika! Lütfen cevabınızı tamamlayın.`
+                : `Noch ${Math.ceil(timeRemaining / 60)} Minute${Math.ceil(timeRemaining / 60) !== 1 ? 'n' : ''}! Bitte schließen Sie Ihre Antwort ab.`
+              }
+            </span>
+          </div>
+        )}
+        {timeRemaining === 0 && (simStatus === 'active' || simStatus === 'documenting') && (
+          <div className="bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-700 rounded-md px-3 py-2 flex items-center gap-2 text-red-800 dark:text-red-300 text-xs">
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="font-medium">
+              {lang === 'tr' ? 'Süre doldu!' : 'Zeit abgelaufen!'}
+            </span>
+          </div>
+        )}
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto py-4 space-y-4 min-h-[300px] max-h-[calc(100vh-340px)]">
