@@ -99,14 +99,14 @@ WICHTIG:
 - Korrekte Fachterminologie im systemPrompt
 - An Schwierigkeitsgrad anpassen`;
 
-    const llmResponse = await fetch('https://apps.abacus.ai/v1/chat/completions', {
+    const llmResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.ABACUSAI_API_KEY}`,
+        'Authorization': `Bearer ${process.env.MISTRAL_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'gpt-5.4-mini',
+        model: 'mistral-large-latest',
         messages: [{ role: 'user', content: generatePrompt }],
         temperature: 0.8,
         max_tokens: 2000,
