@@ -9,7 +9,10 @@ export async function getAuthUser() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   
-  if (error || !user) return null;
+  if (error || !user) {
+    console.error('getAuthUser: Supabase auth failed -', error?.message || 'no user');
+    return null;
+  }
 
   // Get or create profile
   let profile = await prisma.profile.findUnique({

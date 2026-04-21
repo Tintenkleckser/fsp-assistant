@@ -47,8 +47,11 @@ export function BriefingClient({ templateId }: { templateId: string }) {
     fetchTemplate();
   }, [templateId]);
 
+  const [error, setError] = useState<string | null>(null);
+
   const handleStart = async () => {
     setStarting(true);
+    setError(null);
     try {
       const res = await fetch('/api/simulations', {
         method: 'POST',
@@ -58,12 +61,26 @@ export function BriefingClient({ templateId }: { templateId: string }) {
           languageMode: bilingual ? 'bilingual' : 'german_only',
         }),
       });
-      const sim = await res?.json?.();
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('API error:', res.status, errData);
+        if (res.status === 401) {
+          setError(lang === 'tr' ? 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.' : 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+          setTimeout(() => router.push('/login'), 2000);
+          return;
+        }
+        setError(errData?.error || (lang === 'tr' ? 'Bir hata oluştu.' : 'Ein Fehler ist aufgetreten.'));
+        return;
+      }
+      const sim = await res.json();
       if (sim?.id) {
         router.push(`/simulation/${templateId}/chat?simId=${sim.id}`);
+      } else {
+        setError(lang === 'tr' ? 'Alıştırma oluşturulamadı.' : 'Übung konnte nicht erstellt werden.');
       }
     } catch (e: any) {
       console.error('Start simulation error:', e);
+      setError(lang === 'tr' ? 'Bağlantı hatası.' : 'Verbindungsfehler.');
     } finally {
       setStarting(false);
     }
@@ -148,6 +165,12 @@ export function BriefingClient({ templateId }: { templateId: string }) {
             </CardContent>
           </Card>
 
+          {error && (
+            <div className="mb-4 rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+              <AlertTriangle className="inline h-4 w-4 mr-2" />
+              {error}
+            </div>
+          )}
           <Button onClick={handleStart} loading={starting} className="w-full gap-2" size="lg">
             <Play className="h-5 w-5" />
             {t('simulation.startExam')}

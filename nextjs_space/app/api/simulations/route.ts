@@ -26,7 +26,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser();
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) {
+      console.error('POST /api/simulations: getAuthUser returned null - user not authenticated');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     const body = await request.json();
     const { templateId, languageMode } = body ?? {};
     if (!templateId) return NextResponse.json({ error: 'templateId required' }, { status: 400 });
