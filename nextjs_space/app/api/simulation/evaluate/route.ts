@@ -27,19 +27,19 @@ export async function POST(request: NextRequest) {
     });
 
     const isBilingual = languageMode === 'bilingual';
-    const simType = template?.type || 'oral_exam';
+    const simType = template?.type || 'patient_conversation';
     const rawChecklist = template?.checklist;
     const checklist: any[] = Array.isArray(rawChecklist) ? rawChecklist : [];
     const hasChecklist = checklist.length > 0;
     const hasDocumentation = !!(documentation || sim?.documentation);
     const docText = documentation || sim?.documentation || '';
-    const requiresDoc = simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation' || simType === 'comprehension';
+    const requiresDoc = simType === 'documentation';
 
     // RAG context
     let handbookContext = '';
     try {
       const topicFromTemplate = template?.titleDe ?? template?.descriptionDe ?? '';
-      handbookContext = await retrieveEvaluationContext(topicFromTemplate, template?.domain ?? 'nursing');
+      handbookContext = await retrieveEvaluationContext(topicFromTemplate, template?.domain ?? 'medicine');
     } catch (e) { /* continue */ }
 
     // Build conversation text
@@ -56,38 +56,27 @@ export async function POST(request: NextRequest) {
       ).join('\n')}\n`;
     }
 
-    // Type-specific evaluation instructions for FSP (Fachsprachenprüfung)
+    // Type-specific evaluation instructions for FSP (Fachsprachenprüfung) – 3 Teile
     const typeInstructions: Record<string, string> = {
-      patient_conversation: `WICHTIG FÜR ARZT-PATIENT-GESPRÄCH (FSP Teil 3):
+      patient_conversation: `WICHTIG FÜR TEIL 1: ARZT-PATIENTEN-GESPRÄCH (ANAMNESE):
 - Medizinische Fachsprache gegenüber dem Patienten ist ein FEHLER und muss negativ bewertet werden.
 - Bewerte: Laienverständliche Sprache, aktives Zuhören, Empathie, systematische Anamneseerhebung.
 - Prüfe, ob der Kandidat auf Patientenfragen SOFORT eingegangen ist (nicht ans Ende geschoben).
-- Prüfe, ob Allergien, Vorerkrankungen, Medikation, Sozialanamnese erfragt wurden.`,
-      vocab_test: `WICHTIG FÜR VERSTÄNDNISTEST (FSP Teil 1):
-- Bewerte Übersetzungen, NICHT Erklärungen.
-- Fachsprache → Patientensprache: Einfache deutsche Wörter erwartet.
-- Deutsch → Latein/Griechisch: Korrekte Fachterminologie erwartet.
-- Nur EINE Übersetzung pro Begriff (mehrere = Punktverlust).`,
-      free_conversation: `WICHTIG FÜR FREIES GESPRÄCH (FSP Teil 2):
-- Bewerte Sprachverständnis und Ausdrucksfähigkeit.
-- Bewerte Flüssigkeit, Grammatik, Wortschatz, Kohärenz.
-- Medizinisches Wissen wird NICHT bewertet.`,
-      documentation: `WICHTIG FÜR DOKUMENTATION (FSP Teil 4):
-- Aktuelle Anamnese auf Seite 1 in GANZEN SÄTZEN (Pflicht).
-- Ab Seite 2: Stichpunkte erlaubt.
-- Patientenangaben NICHT in Fachsprache übersetzen (Anamnese ≠ Arztbrief).
+- Prüfe, ob Allergien, Vorerkrankungen, Medikation, Sozialanamnese erfragt wurden.
+- Es geht um SPRACHKOMPETENZ, nicht um medizinisches Wissen.`,
+      documentation: `WICHTIG FÜR TEIL 2: DOKUMENTATION:
+- Aufgabe A (Kurzdokumentation): Halbsätze/Stichworte, schnell, alle wichtigen Infos.
+- Aufgabe B (Aufnahmebericht): Ganze Sätze, ausführlich, strukturiert.
+- Patientenangaben NICHT in Fachsprache übersetzen.
 - Verdachtsdiagnose MUSS in Fachsprache sein.
+- Bewerte den Unterschied zwischen Kurzdoku und Aufnahmebericht.
 - Bewerte: Vollständigkeit, Struktur, korrekte Zuordnung.`,
-      comprehension: `WICHTIG FÜR TEXTVERSTÄNDNIS (FSP Teil 5):
-- Antworten müssen KURZ und PRÄZISE sein.
-- Überflüssig lange Antworten = Punktverlust.
-- Bewerte korrektes Verständnis der Fragen.
-- Bewerte korrekte Wiedergabe der Telefoninformationen.`,
-      doctor_conversation: `WICHTIG FÜR ARZT-ARZT-GESPRÄCH (FSP Teil 6):
+      doctor_conversation: `WICHTIG FÜR TEIL 3: ARZT-ARZT-GESPRÄCH (ÜBERGABE):
 - Medizinische Fachsprache ist GEFORDERT.
 - Medizinische Fehler werden NICHT bewertet – nur Sprachkompetenz.
 - Bewerte: Strukturierte Fallvorstellung, korrekte Fachtermini, Flüssigkeit.
-- Bewerte, ob der Kandidat fachsprachlich verständlich kommuniziert.`,
+- Bewerte, ob der Kandidat fachsprachlich verständlich kommuniziert.
+- Prüfe die Struktur: Patient, Anamnese, Befund, Verdachtsdiagnose, Procedere.`,
     };
 
     // Documentation section
@@ -100,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const evaluationPrompt = `Du bist ein erfahrener Prüfer für die Fachsprachenprüfung (FSP) für ausländische Ärzte in Deutschland.
 
-Simulationstyp: ${simType === 'patient_conversation' ? 'Patientengespräch' : simType === 'oral_exam' ? 'Mündliche Prüfung' : 'Schriftliche Aufgabe'}
+Simulationstyp: ${simType === 'patient_conversation' ? 'Teil 1: Arzt-Patienten-Gespräch (Anamnese)' : simType === 'documentation' ? 'Teil 2: Dokumentation' : 'Teil 3: Arzt-Arzt-Gespräch (Übergabe)'}
 Aufgabenstellung: ${template?.descriptionDe || ''}
 
 ${typeInstructions[simType] || ''}

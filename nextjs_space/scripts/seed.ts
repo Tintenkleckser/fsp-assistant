@@ -7,180 +7,227 @@ async function main() {
   // Profiles are auto-created on first login via getAuthUser().
 
   // ============================================
-  // Clean up old nursing templates & glossary
+  // Clean up old templates that no longer match
+  // Only delete templates that have no associated simulations
   // ============================================
-  await prisma.simulationTemplate.deleteMany({ where: { domain: 'nursing' } });
+  try {
+    // Find templates with no simulations attached
+    const oldTemplates = await prisma.simulationTemplate.findMany({
+      where: {
+        OR: [
+          { domain: 'nursing' },
+          { type: { in: ['vocab_test', 'free_conversation', 'comprehension'] } },
+        ],
+      },
+      include: { _count: { select: { simulations: true } } },
+    });
+    const deletableIds = oldTemplates
+      .filter(t => t._count.simulations === 0)
+      .map(t => t.id);
+    if (deletableIds.length > 0) {
+      await prisma.simulationTemplate.deleteMany({ where: { id: { in: deletableIds } } });
+      console.log(`Deleted ${deletableIds.length} old templates without simulations.`);
+    }
+  } catch (e) {
+    console.log('Cleanup skipped (non-critical):', (e as any)?.message);
+  }
   await prisma.glossaryTerm.deleteMany({ where: { id: { not: { startsWith: 'glossary-' } } } });
 
   // ============================================
-  // FSP Simulation Templates (6 Prüfungsteile)
+  // FSP Simulation Templates (3 Prüfungsteile)
   // ============================================
 
-  // Teil 1: Verständnistest (Vokabeln + Körperschema)
-  const t1Id = 'fsp-teil1-vokabel-beginner';
+  // Teil 1: Arzt-Patienten-Gespräch (Anamnese)
+  const t1Id = 'fsp-teil1-anamnese-bauchschmerzen';
   await prisma.simulationTemplate.upsert({
     where: { id: t1Id },
     update: {},
     create: {
       id: t1Id,
       domain: 'medicine',
-      type: 'vocab_test',
-      difficulty: 'beginner',
-      titleDe: 'Verständnistest: Fachsprache ↔ Patientensprache',
-      titleTr: 'Anlama Testi: Tıbbi Dil ↔ Hasta Dili',
-      descriptionDe: 'Übersetzen Sie medizinische Fachbegriffe in die Patientensprache und umgekehrt. Sie haben 20 Minuten für 20 Begriffspaare und 5 Minuten für das Körperschema.',
-      descriptionTr: 'Tıbbi terimleri hasta diline ve tersine çevirin. 20 terim çifti için 20 dakikanız ve vücut şeması için 5 dakikanız var.',
-      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP) für Ärzte in Deutschland.\n\nTEIL 1: VERSTÄNDNISTEST\n\nAufgabe A: Gib dem Kandidaten medizinische Fachbegriffe, die er in die verständliche Patientensprache übersetzen soll.\nAufgabe B: Gib dem Kandidaten deutsche Begriffe, die er in die lateinisch/griechische Fachsprache übersetzen soll.\n\nBeginne mit 5 Begriffen aus Aufgabe A, dann 5 aus Aufgabe B. Bewerte die Antworten sofort und gib korrektes Feedback.\n\nBeispiele Aufgabe A (Fachsprache \u2192 Patientensprache):\n- Cephalgie = Kopfschmerzen\n- Emesis = Erbrechen\n- Dyspnoe = Atemnot/Luftnot\n- Hypertonie = Bluthochdruck\n- Obstipation = Verstopfung\n\nBeispiele Aufgabe B (Deutsch \u2192 Latein/Griechisch):\n- Unterarm = Antebrachium\n- Leber = Hepar\n- Bauchspiegelung = Laparoskopie\n- Gallenblase = Vesica biliaris/fellea\n- Lungenentzündung = Pneumonie\n\nWICHTIG:\n- Fordere Übersetzungen, KEINE Erklärungen\n- Akzeptiere mehrere korrekte Übersetzungen\n- Gib nach jeder Antwort Feedback\n- Frage nacheinander, nicht alle auf einmal`,
-      evaluationCriteria: JSON.stringify([]),
-      checklist: JSON.stringify([
-        { id: 'vocab-a-correct', textDe: 'Fachsprache \u2192 Patientensprache korrekt', category: 'Vokabeln', weight: 2 },
-        { id: 'vocab-b-correct', textDe: 'Deutsch \u2192 Latein/Griechisch korrekt', category: 'Vokabeln', weight: 2 },
-        { id: 'vocab-precision', textDe: 'Präzise Übersetzung (nicht Erklärung)', category: 'Präzision', weight: 1 },
-        { id: 'vocab-speed', textDe: 'Zügige Beantwortung', category: 'Tempo', weight: 1 },
-      ]),
-      maxTurns: 12,
-    },
-  });
-
-  // Teil 2: Freies Gespräch
-  const t2Id = 'fsp-teil2-freies-gespraech';
-  await prisma.simulationTemplate.upsert({
-    where: { id: t2Id },
-    update: {},
-    create: {
-      id: t2Id,
-      domain: 'medicine',
-      type: 'free_conversation',
-      difficulty: 'intermediate',
-      titleDe: 'Freies ärztliches Gespräch',
-      titleTr: 'Serbest Tıbbi Görüşme',
-      descriptionDe: 'Die Prüfer stellen Ihnen allgemeine Fragen zu Ihrem beruflichen Werdegang, Ihrer Motivation und zu medizinischen Themen. Es geht um richtiges Verstehen und flüssiges Sprechen.',
-      descriptionTr: 'Sınav komisyonu size mesleki geçmişiniz, motivasyonunuz ve tıbbi konular hakkında genel sorular sorar. Doğru anlama ve akıcı konuşma değerlendirilir.',
-      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 2: FREIES GESPRÄCH (10-15 Minuten)\n\nFühre ein teilweise ärztliches Gespräch mit dem Kandidaten. Stelle Fragen zu:\n\n1. Beruflicher Werdegang: \"Wo haben Sie studiert? In welchem Fach möchten Sie sich spezialisieren?\"\n2. Motivation: \"Warum möchten Sie in Deutschland arbeiten? Was reizt Sie an der deutschen Medizin?\"\n3. Klinische Erfahrung: \"Erzählen Sie von einem interessanten Fall aus Ihrer bisherigen Arbeit.\"\n4. Medizinisches Thema: \"Was wissen Sie über das deutsche Gesundheitssystem? Wie unterscheidet es sich?\"\n5. Alltagsfragen: \"Wie organisieren Sie sich auf Station? Wie gehen Sie mit Stress um?\"\n\nBewerte:\n- Sprachliches Verständnis (Versteht der Kandidat die Fragen?)\n- Ausdrucksfähigkeit (Formuliert er verständliche, vollständige Antworten?)\n- Flüssigkeit (Spricht er flüssig oder stockend?)\n\nWICHTIG:\n- Sei freundlich aber professionell\n- Stelle Nachfragen, wenn Antworten unklar sind\n- Variiere Themen zwischen persönlich und fachlich`,
-      evaluationCriteria: JSON.stringify([]),
-      checklist: JSON.stringify([
-        { id: 'free-understanding', textDe: 'Versteht Fragen richtig', category: 'Verstehen', weight: 3 },
-        { id: 'free-fluency', textDe: 'Spricht flüssig und zusammenhängend', category: 'Sprechen', weight: 3 },
-        { id: 'free-grammar', textDe: 'Korrekte Grammatik und Satzbau', category: 'Grammatik', weight: 2 },
-        { id: 'free-vocabulary', textDe: 'Angemessener Wortschatz', category: 'Wortschatz', weight: 2 },
-        { id: 'free-medical', textDe: 'Kann über medizinische Themen sprechen', category: 'Fachsprache', weight: 2 },
-      ]),
-      maxTurns: 10,
-    },
-  });
-
-  // Teil 3: Arzt-Patient-Gespräch (Anamnese)
-  const t3Id = 'fsp-teil3-anamnese-grundlagen';
-  await prisma.simulationTemplate.upsert({
-    where: { id: t3Id },
-    update: {},
-    create: {
-      id: t3Id,
-      domain: 'medicine',
       type: 'patient_conversation',
       difficulty: 'intermediate',
-      titleDe: 'Anamnesegespräch: Bauchschmerzen',
-      titleTr: 'Öykü Alma: Karın Ağrısı',
-      descriptionDe: 'Sie führen ein Anamnesegespräch mit Frau Müller (52 J.), die über Bauchschmerzen klagt. Erfragen Sie die aktuelle Anamnese in laienverständlicher Sprache. Reagieren Sie flexibel auf Patientenfragen!',
-      descriptionTr: 'Bayan Müller (52 yaş) ile karın ağrısı şikayeti olan bir öykü görüşmesi yapıyorsunuz. Güncel öyküyü anlaşılır bir dille alın. Hasta sorularına esnek tepki verin!',
-      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 3: ARZT-PATIENT-GESPRÄCH (20 Minuten)\n\nDEINE ROLLE: Du spielst die Patientin Frau Müller, 52 Jahre. Du sprichst als Laie, NICHT in Fachsprache.\n\nPATIENTENINFORMATIONEN:\n- Name: Sabine Müller, 52 Jahre\n- Hauptbeschwerde: Bauchschmerzen seit 3 Tagen, rechter Oberbauch\n- Schmerzcharakter: Krampfartig, kommt in Wellen, besonders nach dem Essen\n- Ausstrahlung: Manchmal in die rechte Schulter\n- Übelkeit: Ja, besonders nach fettigem Essen\n- Erbrechen: Einmal gestern\n- Fieber: Leicht erhöht (37.8\u00b0C)\n- Stuhlgang: Normal, kein Blut\n- Vorerkrankungen: Bluthochdruck seit 5 Jahren\n- Medikamente: Ramipril 5mg\n- Allergien: Penicillin (Hautausschlag)\n- Familienanamnese: Mutter hatte Gallensteine\n- Ernährung: Isst gerne fettig, wenig Gemüse\n- Alkohol: Gelegentlich ein Glas Wein\n- Rauchen: Nein\n- Sozial: Verheiratet, 2 Kinder, Büroangestellte\n\nDEINE ANGST/SORGE:\n- \"Ist das was Schlimmes? Meine Nachbarin hatte auch solche Schmerzen und wurde operiert.\"\n- \"Muss ich ins Krankenhaus?\"\n\nWICHTIG:\n- Antworte immer als Patientin in einfacher Sprache\n- Stelle Zwischenfragen und äußere Sorgen MITTEN im Gespräch\n- Gib Informationen nur preis, wenn direkt gefragt\n- Wenn der Arzt Fachbegriffe nutzt, frage: \"Was bedeutet das?\"\n- Erwähne die Penicillin-Allergie NUR wenn nach Allergien gefragt wird`,
+      titleDe: 'Anamnese: Bauchschmerzen in der Notaufnahme',
+      titleTr: 'Öykü Alma: Acil Serviste Karın Ağrısı',
+      descriptionDe: 'Frau Müller (52 J.) kommt mit Bauchschmerzen in die Notaufnahme. Führen Sie eine systematische Anamnese durch. Sprechen Sie in laienverständlicher Sprache – keine Fachbegriffe gegenüber der Patientin! Erfragen Sie: aktuelle Beschwerden, Vorerkrankungen, Medikamente, Allergien, Sozialanamnese.',
+      descriptionTr: 'Bayan Müller (52 yaş) karın ağrısı ile acil servise geliyor. Sistematik bir öykü alın. Anlaşılır dil kullanın – hastaya karşı tıbbi terim kullanmayın! Sorun: mevcut şikayetler, önceki hastalıklar, ilaçlar, alerjiler, sosyal öykü.',
+      systemPrompt: `Du spielst die Patientin Frau Sabine Müller, 52 Jahre alt. Du bist in der Notaufnahme und hast Angst.
+
+DEINE BESCHWERDEN & INFORMATIONEN:
+- Seit 3 Tagen krampfartige Bauchschmerzen rechts oben
+- Schmerzen kommen in Wellen, besonders nach dem Essen
+- Strahlen manchmal in die rechte Schulter aus
+- Übelkeit, besonders nach fettigem Essen
+- Einmal erbrochen (gestern)
+- Leicht erhöhte Temperatur ("Ich fühle mich warm")
+- Stuhlgang normal
+
+VORERKRANKUNGEN:
+- Bluthochdruck seit 5 Jahren
+- Ramipril 5mg morgens
+
+ALLERGIEN:
+- Penicillin (Hautausschlag) – erwähne das NUR wenn direkt nach Allergien gefragt wird!
+
+FAMILIE:
+- Mutter hatte Gallensteine und wurde operiert
+
+SOZIAL:
+- Verheiratet, 2 erwachsene Kinder
+- Büroangestellte
+- Isst gerne fettig, wenig Gemüse
+- Gelegentlich ein Glas Wein, Nichtraucherin
+
+DEINE SORGEN (bringe sie von selbst ein!):
+- "Muss ich operiert werden? Meine Mutter wurde auch operiert wegen sowas."
+- "Ist das was Schlimmes? Ich hab sowas im Internet gelesen..."
+
+WICHTIGE REGELN:
+- Sprich IMMER als Laie, NIEMALS in Fachsprache
+- Gib Informationen nur preis, wenn DIREKT danach gefragt wird
+- Wenn der Arzt Fachbegriffe benutzt, frage nach: "Was meinen Sie damit?"
+- Sei emotional – du hast Angst und Schmerzen
+- Stelle Zwischenfragen: "Muss ich Blut abnehmen lassen?" / "Bekomme ich was gegen die Schmerzen?"
+- Antworte nicht auf Fragen, die nicht gestellt wurden`,
       evaluationCriteria: JSON.stringify([]),
       checklist: JSON.stringify([
-        { id: 'anam-greeting', textDe: 'Angemessene Begrüßung und Vorstellung', category: 'Gesprächsführung', weight: 1 },
+        { id: 'anam-greeting', textDe: 'Begrüßung und Vorstellung', category: 'Gesprächsführung', weight: 1 },
         { id: 'anam-chief', textDe: 'Hauptbeschwerde systematisch erfragt', category: 'Anamnese', weight: 3 },
-        { id: 'anam-pain', textDe: 'Schmerzanamnese vollständig (Lokalisation, Charakter, Intensität)', category: 'Anamnese', weight: 3 },
+        { id: 'anam-pain', textDe: 'Schmerzanamnese vollständig (Lokalisation, Charakter, Intensität, Auslöser)', category: 'Anamnese', weight: 3 },
         { id: 'anam-history', textDe: 'Vorerkrankungen und Medikamente erfragt', category: 'Anamnese', weight: 2 },
         { id: 'anam-allergy', textDe: 'Allergien erfragt', category: 'Anamnese', weight: 3 },
         { id: 'anam-family', textDe: 'Familienanamnese erfragt', category: 'Anamnese', weight: 1 },
         { id: 'anam-social', textDe: 'Sozial- und Genussmittelanamnese erfragt', category: 'Anamnese', weight: 1 },
-        { id: 'anam-patient-lang', textDe: 'Laienverständliche Sprache verwendet (KEINE Fachsprache)', category: 'Sprache', weight: 3 },
-        { id: 'anam-flexibility', textDe: 'Auf Patientenfragen sofort eingegangen', category: 'Gesprächsführung', weight: 3 },
+        { id: 'anam-patient-lang', textDe: 'Laienverständliche Sprache verwendet (KEINE Fachbegriffe)', category: 'Sprache', weight: 3 },
+        { id: 'anam-flexibility', textDe: 'Auf Patientenfragen und -sorgen eingegangen', category: 'Gesprächsführung', weight: 3 },
         { id: 'anam-empathy', textDe: 'Empathisches Verhalten und Beruhigung', category: 'Empathie', weight: 2 },
       ]),
       maxTurns: 12,
     },
   });
 
-  // Teil 4: Dokumentation
-  const t4Id = 'fsp-teil4-dokumentation';
+  // Teil 2: Dokumentation
+  const t2Id = 'fsp-teil2-dokumentation-bauchschmerzen';
   await prisma.simulationTemplate.upsert({
-    where: { id: t4Id },
+    where: { id: t2Id },
     update: {},
     create: {
-      id: t4Id,
+      id: t2Id,
       domain: 'medicine',
       type: 'documentation',
       difficulty: 'intermediate',
-      titleDe: 'Dokumentation: Anamnesebogen ausfüllen',
-      titleTr: 'Dokümantasyon: Anamnez Formu Doldurma',
-      descriptionDe: 'Füllen Sie basierend auf dem vorangegangenen Anamnesegespräch den Anamnesebogen aus. Notieren Sie: Aktuelle Anamnese (ganze Sätze auf Seite 1), Vorerkrankungen, Allergien, Sozialanamnese, Verdachtsdiagnose (Fachsprache!) und Untersuchungsanforderungen.',
-      descriptionTr: 'Önceki öykü görüşmesine dayanarak anamnez formunu doldurun. Not edin: Güncel öykü (1. sayfada tam cümleler), önceki hastalıklar, alerjiler, sosyal öykü, ön tanı (tıbbi terimlerle!) ve tetkik istemleri.',
-      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 4: DOKUMENTATION (25 Minuten)\n\nDer Kandidat soll einen Anamnesebogen basierend auf einem Patientengespräch ausfüllen.\n\nGib dem Kandidaten diese Aufgabe:\n\"Sie haben gerade ein Anamnesegespräch mit Frau Müller (52 J.) geführt, die über krampfartige Bauchschmerzen im rechten Oberbauch klagt, besonders nach dem Essen. Sie hatte einmal Erbrechen, leichtes Fieber und eine Penicillin-Allergie. Vorerkrankung: Hypertonie.\n\nFüllen Sie bitte den Anamnesebogen aus:\n1. Patientendaten\n2. Aktuelle Anamnese (ganze Sätze!)\n3. Vorerkrankungen, Medikation\n4. Allergien/Unverträglichkeiten\n5. Sozialanamnese, Genussmittel\n6. Familienanamnese\n7. Verdachtsdiagnose(n) - IN FACHSPRACHE\n8. Untersuchungsanforderungen\"\n\nBewerte die Antworten auf:\n- Vollständigkeit der Dokumentation\n- Aktuelle Anamnese in ganzen Sätzen (Seite 1)\n- Ab Seite 2: Stichpunkte erlaubt (Zeitgewinn)\n- Verdachtsdiagnose in FACHSPRACHE\n- Keine Übersetzung der Patientenangaben in Fachsprache bei der Anamnese\n- Korrekte Zuordnung der Informationen`,
+      titleDe: 'Dokumentation: Aufnahmebericht Bauchschmerzen',
+      titleTr: 'Dokümantasyon: Karın Ağrısı Kabul Raporu',
+      descriptionDe: 'Dokumentieren Sie den Fall von Frau Müller (52 J., Bauchschmerzen rechter Oberbauch). Erstellen Sie zuerst eine schnelle Kurzdokumentation (Halbsätze/Stichworte) und dann den ausführlichen Aufnahmebericht (ganze Sätze). Die Verdachtsdiagnose muss in Fachsprache formuliert werden!',
+      descriptionTr: 'Bayan Müller vakasını (52 yaş, sağ üst karın ağrısı) dokümante edin. Önce hızlı kısa dokümantasyon (yarım cümleler/anahtar kelimeler), sonra ayrıntılı kabul raporu (tam cümleler). Ön tanı tıbbi terminoloji ile!',
+      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).
+
+TEIL 2: DOKUMENTATION (20 Minuten)
+
+Der Kandidat soll basierend auf einem Patientenfall dokumentieren.
+
+Gib dem Kandidaten diese Aufgabe:
+
+"Sie haben gerade das Anamnesegespräch mit Frau Müller (52 J.) geführt. Hier die Zusammenfassung:
+- Krampfartige Bauchschmerzen rechter Oberbauch seit 3 Tagen
+- Wellen, verstärkt nach dem Essen, Ausstrahlung rechte Schulter
+- Übelkeit nach fettigem Essen, einmal Erbrechen
+- Leicht erhöhte Temperatur
+- Vorerkrankung: Bluthochdruck (Ramipril 5mg)
+- Allergie: Penicillin (Hautausschlag)
+- FA: Mutter Gallensteine
+- Sozial: verheiratet, 2 Kinder, Büroangestellte, gelegentlich Wein, Nichtraucherin
+
+Aufgabe A – SCHNELLE KURZDOKUMENTATION:
+Schreiben Sie eine Kurzdokumentation in Halbsätzen/Stichworten, wie Sie sie auf Station schnell anfertigen würden.
+
+Aufgabe B – AUSFÜHRLICHER AUFNAHMEBERICHT:
+Schreiben Sie den Aufnahmebericht in ganzen Sätzen mit:
+1. Patientendaten
+2. Aktuelle Anamnese (ganze Sätze!)
+3. Vorerkrankungen, Medikation
+4. Allergien/Unverträglichkeiten
+5. Sozialanamnese
+6. Familienanamnese
+7. Verdachtsdiagnose(n) – IN FACHSPRACHE
+8. Vorgeschlagene Diagnostik"
+
+Bewerte:
+- Aufgabe A: Halbsätze, schnell, alle wichtigen Infos
+- Aufgabe B: Ganze Sätze, ausführlich, strukturiert
+- Verdachtsdiagnose MUSS in Fachsprache sein
+- Patientenaussagen dürfen NICHT in Fachsprache übersetzt werden
+- Klare Trennung zwischen Kurzdoku und Aufnahmebericht`,
       evaluationCriteria: JSON.stringify([]),
       checklist: JSON.stringify([
-        { id: 'doc-patient-data', textDe: 'Patientendaten vollständig', category: 'Dokumentation', weight: 1 },
-        { id: 'doc-current-full-sentences', textDe: 'Aktuelle Anamnese in ganzen Sätzen', category: 'Dokumentation', weight: 3 },
-        { id: 'doc-completeness', textDe: 'Alle relevanten Informationen dokumentiert', category: 'Dokumentation', weight: 3 },
-        { id: 'doc-diagnosis', textDe: 'Verdachtsdiagnose in Fachsprache', category: 'Fachsprache', weight: 3 },
-        { id: 'doc-no-translation', textDe: 'Patientenangaben NICHT in Fachsprache übersetzt', category: 'Fachsprache', weight: 2 },
-        { id: 'doc-exam-requests', textDe: 'Untersuchungsanforderungen korrekt', category: 'Dokumentation', weight: 2 },
+        { id: 'doc-short-complete', textDe: 'Kurzdokumentation enthält alle relevanten Infos', category: 'Kurzdokumentation', weight: 2 },
+        { id: 'doc-short-style', textDe: 'Kurzdoku in Halbsätzen/Stichworten (nicht zu ausführlich)', category: 'Kurzdokumentation', weight: 2 },
+        { id: 'doc-full-sentences', textDe: 'Aufnahmebericht in ganzen Sätzen geschrieben', category: 'Aufnahmebericht', weight: 3 },
+        { id: 'doc-completeness', textDe: 'Alle Anamnesepunkte vollständig dokumentiert', category: 'Aufnahmebericht', weight: 3 },
+        { id: 'doc-diagnosis-fachsprache', textDe: 'Verdachtsdiagnose in Fachsprache (z.B. Cholezystolithiasis)', category: 'Fachsprache', weight: 3 },
+        { id: 'doc-no-translation', textDe: 'Patientenaussagen NICHT in Fachsprache übersetzt', category: 'Fachsprache', weight: 2 },
+        { id: 'doc-diagnostics', textDe: 'Sinnvolle Diagnostik vorgeschlagen', category: 'Aufnahmebericht', weight: 1 },
         { id: 'doc-structure', textDe: 'Klare Struktur und Zuordnung', category: 'Struktur', weight: 2 },
       ]),
       maxTurns: 8,
     },
   });
 
-  // Teil 5: Textverständnis
-  const t5Id = 'fsp-teil5-textverstaendnis';
+  // Teil 3: Arzt-Arzt-Gespräch (Übergabe)
+  const t3Id = 'fsp-teil3-uebergabe-bauchschmerzen';
   await prisma.simulationTemplate.upsert({
-    where: { id: t5Id },
+    where: { id: t3Id },
     update: {},
     create: {
-      id: t5Id,
-      domain: 'medicine',
-      type: 'comprehension',
-      difficulty: 'intermediate',
-      titleDe: 'Textverständnis: Arztbrief und Befunde',
-      titleTr: 'Metin Anlama: Epikriz ve Bulgular',
-      descriptionDe: 'Sie erhalten einen Arztbrief/Befundbericht. Beantworten Sie die Fragen dazu kurz und präzise. Zusätzlich erhalten Sie telefonische Informationen, die Sie korrekt erfassen müssen.',
-      descriptionTr: 'Bir epikriz/bulgu raporu alacaksınız. Soruları kısa ve öz yanıtlayın. Ayrıca telefonla verilen bilgileri doğru bir şekilde kaydetmeniz gerekecek.',
-      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 5: TEXTVERSTÄNDNIS (20 Minuten)\n\nGib dem Kandidaten folgenden ARZTBRIEF:\n\n---\nEntlassungsbrief\nPat.: Müller, Hans, geb. 15.03.1958\nStation: Innere Medizin\nAufnahme: 10.01.2026 | Entlassung: 17.01.2026\n\nDiagnosen:\n1. Akute Cholezystitis bei Cholelithiasis\n2. Art. Hypertonie\n3. Diabetes mellitus Typ 2\n\nAnamnese: Der Patient stellte sich mit seit 3 Tagen bestehenden rechtsseitigen Oberbauchschmerzen vor. Die Schmerzen verstärkten sich postprandial. Begleitend bestanden Übelkeit und einmaliges Erbrechen. Temp. bei Aufnahme 38.2\u00b0C.\n\nBefunde: Sono Abdomen: Gallenblase verdickt (5mm), multiple Konkremente, pericholezystitisches Ödem. Labor: Leukozyten 14.200/\u00b5l, CRP 85 mg/l, GGT 120 U/l, AP 180 U/l.\n\nTherapie: Laparoskopische Cholezystektomie am 12.01.2026 ohne Komplikationen. Postop. Verlauf unauffällig.\n\nMedikation bei Entlassung: Ramipril 5mg 1-0-0, Metformin 1000mg 1-0-1, Ibuprofen 400mg bei Bedarf.\n\nWeitere Empfehlungen: Wiedervorstellung beim Hausarzt in 1 Woche, fädenziehende Nachsorge.\n---\n\nStelle dann 3 Fragen zum Brief:\n1. \"Welche Hauptdiagnose führte zur stationären Aufnahme?\"\n2. \"Welche Befunde bestätigten die Diagnose?\"\n3. \"Welche Therapie wurde durchgeführt und wie war der Verlauf?\"\n\nDANN simuliere einen Telefonanruf:\n\"Hier spricht Dr. Weber vom Labor. Die histologische Untersuchung der Gallenblase von Herrn Müller zeigt eine chronische Cholezystitis mit Cholesterolsteinen. Kein Hinweis auf Malignität. Der Befund ist unauffällig.\"\n\nFrage: \"Bitte fassen Sie den Telefonanruf zusammen.\"\n\nBewerte: Richtiges Verständnis, kurze präzise Antworten, keine überflüssigen Informationen.`,
-      evaluationCriteria: JSON.stringify([]),
-      checklist: JSON.stringify([
-        { id: 'comp-q1-correct', textDe: 'Frage 1 korrekt beantwortet', category: 'Textverständnis', weight: 2 },
-        { id: 'comp-q2-correct', textDe: 'Frage 2 korrekt beantwortet', category: 'Textverständnis', weight: 2 },
-        { id: 'comp-q3-correct', textDe: 'Frage 3 korrekt beantwortet', category: 'Textverständnis', weight: 2 },
-        { id: 'comp-concise', textDe: 'Antworten kurz und präzise (kein überflüssiger Text)', category: 'Präzision', weight: 2 },
-        { id: 'comp-phone', textDe: 'Telefonanruf korrekt zusammengefasst', category: 'Akustisches Verständnis', weight: 3 },
-        { id: 'comp-terminology', textDe: 'Korrekte medizinische Terminologie verwendet', category: 'Fachsprache', weight: 2 },
-      ]),
-      maxTurns: 8,
-    },
-  });
-
-  // Teil 6: Arzt-Arzt-Gespräch
-  const t6Id = 'fsp-teil6-arzt-arzt';
-  await prisma.simulationTemplate.upsert({
-    where: { id: t6Id },
-    update: {},
-    create: {
-      id: t6Id,
+      id: t3Id,
       domain: 'medicine',
       type: 'doctor_conversation',
       difficulty: 'advanced',
-      titleDe: 'Arzt-Arzt-Gespräch: Fallvorstellung',
-      titleTr: 'Doktor-Doktor Görüşmesi: Vaka Sunumu',
-      descriptionDe: 'Stellen Sie der Oberärztin/dem Oberarzt einen Patientenfall in medizinischer Fachsprache vor. Hier ist die Fachsprache ausdrücklich gefordert. Medizinische Fehler werden NICHT bewertet – nur Ihre sprachliche Kompetenz.',
-      descriptionTr: 'Başasistana bir hasta vakasını tıbbi terminoloji ile sunun. Burada tıbbi terimler açıkça beklenir. Tıbbi hatalar değerlendirilmez – sadece dil yetkinliğiniz.',
-      systemPrompt: `Du bist ein Prüfer für die Fachsprachenprüfung (FSP).\n\nTEIL 6: ARZT-ARZT-GESPRÄCH (15-20 Minuten)\n\nDEINE ROLLE: Du spielst die Oberärztin Dr. Schmidt. Du erwartest eine strukturierte Fallvorstellung IN FACHSPRACHE.\n\nGib dem Kandidaten die Aufgabe:\n\"Bitte stellen Sie mir den Fall von Frau Müller vor. Sie hatten vorhin das Anamnesegespräch mit ihr. Berichten Sie mir bitte über die Patientin – in Fachsprache, wie Sie es unter Kollegen tun würden.\"\n\nERWARTETE INFORMATIONEN (in Fachsprache):\n- Patientenvorstellung: \"52-jährige Patientin, Vorstellung mit seit 3 Tagen bestehenden rechtsseitigen Oberbauchschmerzen...\"\n- Anamnese: Kolikartige Beschwerden, postprandiale Verstärkung, Ausstrahlung in die rechte Schulter\n- Begleitsymptome: Nausea, einmaliges Emesis, subfebrile Temperatur\n- Vorerkrankungen: Arterielle Hypertonie\n- Medikation: Ramipril 5mg\n- Allergien: Penicillinallergie\n- Verdachtsdiagnose: V.a. Cholezystolithiasis/akute Cholezystitis\n- Vorgeschlagene Diagnostik: Sonographie Abdomen, Labor (BB, CRP, Lipase, GGT, AP, Bilirubin)\n\nDEINE RÜCKFRAGEN:\n- \"Welche Differentialdiagnosen kämen noch in Frage?\"\n- \"Welche Bildgebung würden Sie anordnen?\"\n- \"Wie würden Sie die Patientin weiter behandeln?\"\n\nWICHTIG:\n- Bewerte NUR die sprachliche Kompetenz, NICHT das medizinische Wissen\n- Fachsprache ist hier GEFORDERT\n- Bewerte Flüssigkeit, Strukturiertheit, korrekten Einsatz von Fachtermini`,
+      titleDe: 'Übergabe: Fallvorstellung Bauchschmerzen',
+      titleTr: 'Devir Teslim: Karın Ağrısı Vaka Sunumu',
+      descriptionDe: 'Stellen Sie der Oberärztin den Fall von Frau Müller in medizinischer Fachsprache vor. Hier ist Fachsprache ausdrücklich gefordert! Strukturierte Übergabe: Patientenvorstellung, Anamnese, Befund, Verdachtsdiagnose, Procedere. Medizinische Fehler werden NICHT bewertet – nur Ihre Sprachkompetenz.',
+      descriptionTr: 'Başasistana Bayan Müller vakasını tıbbi terminoloji ile sunun. Burada tıbbi terimler açıkça beklenir! Yapılandırılmış devir teslim: Hasta sunumu, öykü, bulgu, ön tanı, işlem planı. Tıbbi hatalar değerlendirilmez – sadece dil yetkinliğiniz.',
+      systemPrompt: `Du spielst die Oberärztin Dr. Schmidt. Du erwartest eine strukturierte Fallvorstellung IN FACHSPRACHE.
+
+Sage zu Beginn:
+"Guten Tag, Kollegin/Kollege. Ich höre, Sie haben eine neue Patientin aufgenommen. Bitte stellen Sie mir den Fall vor."
+
+DER FALL (den der Kandidat kennen sollte):
+- Frau Müller, 52 J., Notaufnahme
+- Krampfartige Oberbauchschmerzen rechts seit 3 Tagen
+- Postprandiale Verstärkung, Ausstrahlung in die rechte Schulter
+- Nausea, einmaliges Emesis, subfebrile Temperatur
+- VE: Arterielle Hypertonie (Ramipril 5mg)
+- Allergie: Penicillin
+- FA: Mutter Cholezystolithiasis
+- V.a. Cholezystolithiasis / akute Cholezystitis
+
+DEINE RÜCKFRAGEN (stelle sie im Gespräch):
+- "Welche Differentialdiagnosen kämen in Frage?"
+- "Welche Diagnostik haben Sie angeordnet?"
+- "Gibt es Kontraindikationen für die Medikation?"
+- "Wie ist Ihr Procedere?"
+
+BEWERTUNGSFOKUS:
+- Fachsprache ist hier GEFORDERT und ERWARTET
+- Strukturierte Vorstellung (nicht chaotisch)
+- Flüssiger Vortrag
+- Korrekter Einsatz von Fachtermini
+- Medizinische Fehler werden NICHT bewertet, nur Sprachkompetenz
+
+WICHTIG:
+- Sei professionell und kollegial
+- Stelle gezielt Nachfragen
+- Wenn der Kandidat Laiensprache benutzt, weise freundlich darauf hin: "Können Sie das bitte in Fachsprache formulieren?"`,
       evaluationCriteria: JSON.stringify([]),
       checklist: JSON.stringify([
-        { id: 'doc-conv-structure', textDe: 'Strukturierte Fallvorstellung', category: 'Struktur', weight: 3 },
-        { id: 'doc-conv-terminology', textDe: 'Korrekte medizinische Fachsprache', category: 'Fachsprache', weight: 3 },
-        { id: 'doc-conv-fluency', textDe: 'Flüssiges Sprechen', category: 'Sprachkompetenz', weight: 2 },
-        { id: 'doc-conv-completeness', textDe: 'Vollständige Fallinformationen', category: 'Vollständigkeit', weight: 2 },
-        { id: 'doc-conv-questions', textDe: 'Fachfragen verständlich beantwortet', category: 'Kommunikation', weight: 2 },
-        { id: 'doc-conv-diagnosis', textDe: 'Verdachtsdiagnose in korrekter Fachsprache', category: 'Fachsprache', weight: 3 },
+        { id: 'ueberg-structure', textDe: 'Strukturierte Fallvorstellung (Patient, Anamnese, Befund, Diagnose, Procedere)', category: 'Struktur', weight: 3 },
+        { id: 'ueberg-fachsprache', textDe: 'Durchgehend Fachsprache verwendet', category: 'Fachsprache', weight: 3 },
+        { id: 'ueberg-fluency', textDe: 'Flüssiger Vortrag ohne lange Pausen', category: 'Sprachkompetenz', weight: 2 },
+        { id: 'ueberg-terminology', textDe: 'Korrekte medizinische Terminologie (Nausea, Emesis, subfebrile Temp.)', category: 'Fachsprache', weight: 3 },
+        { id: 'ueberg-completeness', textDe: 'Alle relevanten Fallinformationen übergeben', category: 'Vollständigkeit', weight: 2 },
+        { id: 'ueberg-questions', textDe: 'Rückfragen der Oberärztin kompetent beantwortet', category: 'Kommunikation', weight: 2 },
+        { id: 'ueberg-diagnosis', textDe: 'Verdachtsdiagnose in korrekter Fachsprache', category: 'Fachsprache', weight: 3 },
       ]),
       maxTurns: 10,
     },
@@ -204,13 +251,13 @@ async function main() {
     { termDe: 'Obstipation', termTr: 'Kabızlık', contextDe: 'Verstopfung (Stuhlgang)', contextTr: 'Dışkılama güçlüğü' },
     // Diagnosen
     { termDe: 'Hypertonie', termTr: 'Yüksek tansiyon', contextDe: 'Bluthochdruck (art. Hypertonie)', contextTr: 'Yüksek kan basıncı' },
-    { termDe: 'Cholezystitis', termTr: 'Safra kesesi iltihabı', contextDe: 'Gallenblasenentzündung', contextTr: 'Safra kesesi yangısı' },
-    { termDe: 'Pneumonie', termTr: 'Zatürre', contextDe: 'Lungenentzündung', contextTr: 'Akciğer iltihabı' },
-    { termDe: 'Appendizitis', termTr: 'Apandisit', contextDe: 'Blinddarmentzündung', contextTr: 'Apandis iltihabı' },
+    { termDe: 'Cholezystitis', termTr: 'Safra kesesi iltihaı', contextDe: 'Gallenblasenentzündung', contextTr: 'Safra kesesi yangısı' },
+    { termDe: 'Pneumonie', termTr: 'Zatürre', contextDe: 'Lungenentzündung', contextTr: 'Akciğer iltihaı' },
+    { termDe: 'Appendizitis', termTr: 'Apandisit', contextDe: 'Blinddarmentzündung', contextTr: 'Apandis iltihaı' },
     { termDe: 'Fraktur', termTr: 'Kırık', contextDe: 'Knochenbruch', contextTr: 'Kemik kırığı' },
     // Verfahren
     { termDe: 'Cholezystektomie', termTr: 'Safra kesesi ameliyatı', contextDe: 'Operative Entfernung der Gallenblase', contextTr: 'Safra kesesi alınması' },
-    { termDe: 'Laparoskopie', termTr: 'Karın dürbini', contextDe: 'Bauchspiegelung (minimalinvasiv)', contextTr: 'Karın içi görüntüleme' },
+    { termDe: 'Laparoskopie', termTr: 'Karın dürbünü', contextDe: 'Bauchspiegelung (minimalinvasiv)', contextTr: 'Karın içi görüntüleme' },
     { termDe: 'Sonographie', termTr: 'Ultrason', contextDe: 'Ultraschalluntersuchung', contextTr: 'Ses dalgalarıyla görüntüleme' },
     // Anamnese
     { termDe: 'Anamnese', termTr: 'Öykü alma', contextDe: 'Systematische Befragung des Patienten', contextTr: 'Hastanın tıbbi geçmişinin sorgulanması' },
@@ -226,7 +273,7 @@ async function main() {
     });
   }
 
-  console.log('FSP-Assistent Seed completed successfully!');
+  console.log('FSP-Assistent Seed completed successfully! (3 Prüfungsteile)');
 }
 
 main()

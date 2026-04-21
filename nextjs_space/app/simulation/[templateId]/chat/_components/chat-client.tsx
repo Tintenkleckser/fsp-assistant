@@ -88,7 +88,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
           const cl = data.template.checklist;
           if (Array.isArray(cl) && cl.length > 0) setChecklistItems(cl);
           const simType = data.template.type;
-          setRequiresDoc(simType === 'patient_conversation' || simType === 'written_task' || simType === 'documentation' || simType === 'comprehension');
+          setRequiresDoc(simType === 'documentation');
           // Initialize countdown timer based on simulation type
           if (data?.status !== 'completed') {
             const limitMin = getTimeLimitForType(simType);

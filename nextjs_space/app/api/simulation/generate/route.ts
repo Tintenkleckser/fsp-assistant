@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/supabase/auth-helpers';
 import { prisma } from '@/lib/db';
 import { retrieveHandbookContext } from '@/lib/handbook-rag';
-import { TOPIC_CATEGORIES, DIFFICULTY_LEVELS, SIMULATION_TYPES } from '@/lib/topic-categories';
+import { DIFFICULTY_LEVELS, SIMULATION_TYPES } from '@/lib/topic-categories';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,15 +13,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { topicId, difficulty, simulationType } = body ?? {};
+    const { difficulty, simulationType } = body ?? {};
 
-    if (!topicId || !difficulty || !simulationType) {
-      return NextResponse.json({ error: 'Fehlende Felder: topicId, difficulty, simulationType' }, { status: 400 });
-    }
-
-    const topic = TOPIC_CATEGORIES.find(t => t.id === topicId);
-    if (!topic) {
-      return NextResponse.json({ error: 'Unbekanntes Thema' }, { status: 400 });
+    if (!difficulty || !simulationType) {
+      return NextResponse.json({ error: 'Fehlende Felder: difficulty, simulationType' }, { status: 400 });
     }
 
     const diffLevel = DIFFICULTY_LEVELS.find(d => d.id === difficulty);
@@ -30,74 +25,93 @@ export async function POST(request: NextRequest) {
     }
 
     const simType = SIMULATION_TYPES.find(s => s.id === simulationType);
+    if (!simType) {
+      return NextResponse.json({ error: 'Unbekannter Prüfungsteil' }, { status: 400 });
+    }
 
-    // Retrieve context for this topic
+    // Retrieve generic medical context for emergency/admission scenarios
     let handbookContext = '';
     try {
-      handbookContext = await retrieveHandbookContext(topic.keywords.join(' '), 'medicine', 3);
+      const keywords = 'Notaufnahme Aufnahme Anamnese Patient Krankenhaus';
+      handbookContext = await retrieveHandbookContext(keywords, 'medicine', 3);
     } catch (e) { /* continue without */ }
 
     const typeLabels: Record<string, string> = {
-      vocab_test: 'Verständnistest (Teil 1): Fachsprache \u2194 Patientensprache, Lat./Griech. \u2194 Deutsch',
-      free_conversation: 'Freies Gespräch (Teil 2): Allgemeines ärztliches Gespräch',
-      patient_conversation: 'Arzt-Patient-Gespräch (Teil 3): Anamneseerhebung in laienverständlicher Sprache',
-      documentation: 'Dokumentation (Teil 4): Anamnesebogen ausfüllen, Verdachtsdiagnose, Untersuchungsanforderungen',
-      comprehension: 'Textverständnis (Teil 5): Arztbrief/Befunde lesen, Telefonanrufe verstehen',
-      doctor_conversation: 'Arzt-Arzt-Gespräch (Teil 6): Fallvorstellung in medizinischer Fachsprache',
+      patient_conversation: 'Teil 1: Arzt-Patienten-Gespräch (Anamnese) \u2013 Verstehen und Sprechen in laienverständlicher Sprache',
+      documentation: 'Teil 2: Dokumentation \u2013 Schnelle Kurzdokumentation (Halbsätze) UND ausführlicher Aufnahmebericht (ganze Sätze)',
+      doctor_conversation: 'Teil 3: Arzt-Arzt-Gespräch (Übergabe) \u2013 Fallvorstellung in medizinischer Fachsprache',
     };
 
     const difficultyInstructions: Record<string, string> = {
-      beginner: 'EINSTEIGER: Klare Aufgabenstellung, kooperativer Patient, Grundlagenwissen.',
-      intermediate: 'MITTEL: Komplexere Situation, mehrere Differentialdiagnosen möglich.',
-      advanced: 'FORTGESCHRITTEN: Anspruchsvoller Fall mit Komplikationen und Komorbiditäten.',
+      beginner: 'EINSTEIGER: Kooperativer Patient, klare Symptome, einfache Situation. Notaufnahme oder station\u00e4re Aufnahme.',
+      intermediate: 'MITTEL: Realistisches Szenario wie in der Prüfung. Patient hat Rückfragen und Sorgen.',
+      advanced: 'FORTGESCHRITTEN: Schwieriger Patient, emotional, mehrere Beschwerden, Zeitdruck.',
     };
 
     const maxTurns = difficulty === 'beginner' ? 8 : difficulty === 'intermediate' ? 10 : 12;
 
     const checklistGuidance: Record<string, string> = {
-      vocab_test: `CHECKLISTE FÜR VERSTÄNDNISTEST:\n- Prüfe korrekte Übersetzungen Fachsprache \u2194 Patientensprache\n- Prüfe korrekte Lat./Griech. Terminologie\n- NUR Übersetzungen, keine Erklärungen\n- Eine Übersetzung pro Begriff`,
-      free_conversation: `CHECKLISTE FÜR FREIES GESPRÄCH:\n- Sprachverständnis, Ausdrucksfähigkeit, Flüssigkeit\n- Grammatik, Wortschatz, Kohärenz\n- Medizinisches Wissen wird NICHT bewertet`,
-      patient_conversation: `CHECKLISTE FÜR ARZT-PATIENT-GESPRÄCH:\n- Fachsprache beim Patienten ist ein FEHLER\n- Prüfe: Laienverständliche Sprache, systematische Anamnese\n- Prüfe: Sofortiges Eingehen auf Patientenfragen\n- Prüfe: Allergien, Vorerkrankungen, Medikation, Sozialanamnese erfragt\n- Baue Ängste/Sorgen beim Patienten ein`,
-      documentation: `CHECKLISTE FÜR DOKUMENTATION:\n- Aktuelle Anamnese in ganzen Sätzen (Seite 1)\n- Ab Seite 2: Stichpunkte erlaubt\n- Verdachtsdiagnose in FACHSPRACHE\n- Patientenangaben NICHT in Fachsprache übersetzen\n- Untersuchungsanforderungen vollständig`,
-      comprehension: `CHECKLISTE FÜR TEXTVERSTÄNDNIS:\n- Korrekte, kurze Antworten auf Fragen zum Arztbrief\n- Korrekte Zusammenfassung von Telefoninformationen\n- Keine überflüssigen Informationen`,
-      doctor_conversation: `CHECKLISTE FÜR ARZT-ARZT-GESPRÄCH:\n- Fachsprache ist GEFORDERT\n- Strukturierte Fallvorstellung\n- Med. Fehler werden NICHT bewertet, nur Sprachkompetenz\n- Flüssigkeit und korrekter Einsatz von Fachtermini`,
+      patient_conversation: `CHECKLISTE FÜR ARZT-PATIENTEN-GESPRÄCH (ANAMNESE):
+- Fachsprache beim Patienten ist ein FEHLER
+- Prüfe: Laienverständliche Sprache, systematische Anamnese
+- Prüfe: Sofortiges Eingehen auf Patientenfragen
+- Prüfe: Allergien, Vorerkrankungen, Medikation, Sozialanamnese erfragt
+- Baue Ängste/Sorgen beim Patienten ein
+- Der Schwerpunkt liegt auf SPRACHKOMPETENZ, nicht medizinischem Wissen`,
+      documentation: `CHECKLISTE FÜR DOKUMENTATION:
+- Aufgabe A: Schnelle Kurzdokumentation in Halbsätzen/Stichworten
+- Aufgabe B: Ausführlicher Aufnahmebericht in ganzen Sätzen
+- Verdachtsdiagnose in FACHSPRACHE
+- Patientenangaben NICHT in Fachsprache übersetzen
+- Untersuchungsanforderungen vollständig
+- Prüfe den Unterschied zwischen Kurzdoku und Aufnahmebericht`,
+      doctor_conversation: `CHECKLISTE FÜR ARZT-ARZT-GESPRÄCH (ÜBERGABE):
+- Fachsprache ist GEFORDERT
+- Strukturierte Fallvorstellung: Patient, Anamnese, Befund, Verdachtsdiagnose, Procedere
+- Med. Fehler werden NICHT bewertet, nur Sprachkompetenz
+- Flüssigkeit und korrekter Einsatz von Fachtermini
+- Der Prüfer (Oberärztin/Oberarzt) stellt Rückfragen`,
     };
 
-    const requiresDocumentation = simulationType === 'patient_conversation' || simulationType === 'documentation' || simulationType === 'comprehension';
+    const scenarioGuidance = `SZENARIO-ANFORDERUNGEN:
+- Das Szenario spielt in einer Notaufnahme oder bei einer stationären Aufnahme
+- Typische Patientensituation (Bauchschmerzen, Brustschmerzen, Atemnot, Sturz, Rückenschmerzen, etc.)
+- Der Patient ist ein LAIE und spricht einfache Sprache
+- Es geht um SPRACHKOMPETENZ, NICHT um medizinisches Fachwissen
+- Erfinde einen konkreten Patienten mit Name, Alter, Beruf, Vorerkrankungen, Allergien
+- Der Patient muss Sorgen und Ängste haben, die er im Gespräch äußert`;
 
     const generatePrompt = `Du bist ein Experte für die Fachsprachenprüfung (FSP) für ausländische Ärzte in Deutschland.
 
-Erstelle ein realistisches FSP-Prüfungsszenario zum medizinischen Thema "${topic.titleDe}" (${topic.descriptionDe}).
+WICHTIG: Die FSP prüft SPRACHKOMPETENZ im klinischen Alltag, NICHT medizinisches Fachwissen.
 
+Erstelle ein realistisches FSP-Prüfungsszenario für:
 Prüfungsteil: ${typeLabels[simulationType] || simulationType}
 Schwierigkeitsgrad: ${difficultyInstructions[difficulty] || difficulty}
-${handbookContext ? `\n${handbookContext}\n` : ''}
+
+${scenarioGuidance}
 
 ${checklistGuidance[simulationType] || ''}
 
+${handbookContext ? `\nKONTEXT AUS LEHRBUCH:\n${handbookContext}\n` : ''}
+
 Antworte AUSSCHLIESSLICH als valides JSON:
 {
-  "titleDe": "Kurzer Titel auf Deutsch",
+  "titleDe": "Kurzer Titel auf Deutsch (z.B. 'Anamnese: Brustschmerzen in der Notaufnahme')",
   "titleTr": "Gleicher Titel auf Türkisch",
-  "descriptionDe": "Ausführliche Aufgabenstellung (3-5 Sätze) auf Deutsch.",
+  "descriptionDe": "Aufgabenstellung (3-5 Sätze) mit konkretem Patientenfall. Auf Deutsch.",
   "descriptionTr": "Gleiche Aufgabenstellung auf Türkisch",
-  "systemPrompt": "Detaillierte Rollenanweisung. Bei Patientengesprächen: Name, Alter, Beschwerden, Persönlichkeit. Bei Arzt-Arzt: Falldaten, erwartete Fachsprache. Mindestens 200 Wörter.",
+  "systemPrompt": "Detaillierte Rollenanweisung für die KI. Bei Teil 1: Du spielst den PATIENTEN (Laie!). Bei Teil 2: Du bist der Prüfer und gibst die Dokumentationsaufgabe. Bei Teil 3: Du spielst die Oberärztin/den Oberarzt. Mindestens 250 Wörter mit konkreten Patientendaten.",
   "evaluationCriteria": ["Kriterium1", "Kriterium2"],
   "checklist": [
-    {"id": "1", "textDe": "Aufgabe auf Deutsch", "textTr": "Türkische Übersetzung", "category": "Kategorie", "weight": 1-3}
+    {"id": "1", "textDe": "Prüfpunkt auf Deutsch", "textTr": "Türkische Übersetzung", "category": "Kategorie", "weight": 1-3}
   ]
 }
 
 CHECKLIST-REGELN:
-- 8-15 spezifische Items
+- 8-12 spezifische Items
 - weight: 1=normal, 2=wichtig, 3=kritisch
-- Items müssen spezifisch zum FSP-Teil und Szenario passen
-${requiresDocumentation ? '- Füge Items der Kategorie "Dokumentation" hinzu' : ''}
-
-WICHTIG:
-- Realistisches medizinisches Szenario
-- Korrekte Fachterminologie im systemPrompt
-- An Schwierigkeitsgrad anpassen`;
+- Items müssen SPRACHKOMPETENZ prüfen, nicht medizinisches Wissen`;
 
     const llmResponse = await fetch('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
@@ -109,7 +123,7 @@ WICHTIG:
         model: 'mistral-large-latest',
         messages: [{ role: 'user', content: generatePrompt }],
         temperature: 0.8,
-        max_tokens: 2000,
+        max_tokens: 2500,
       }),
     });
 
@@ -136,12 +150,12 @@ WICHTIG:
         domain: 'medicine',
         type: simulationType,
         difficulty,
-        titleDe: parsed.titleDe || `${topic.titleDe} - ${diffLevel.labelDe}`,
-        titleTr: parsed.titleTr || `${topic.titleTr} - ${diffLevel.labelTr}`,
-        descriptionDe: parsed.descriptionDe || topic.descriptionDe,
-        descriptionTr: parsed.descriptionTr || topic.descriptionTr,
+        titleDe: parsed.titleDe || `FSP ${simType.shortDe} - ${diffLevel.labelDe}`,
+        titleTr: parsed.titleTr || `FSP ${simType.shortTr} - ${diffLevel.labelTr}`,
+        descriptionDe: parsed.descriptionDe || simType.descriptionDe,
+        descriptionTr: parsed.descriptionTr || simType.descriptionTr,
         systemPrompt: parsed.systemPrompt || '',
-        evaluationCriteria: parsed.evaluationCriteria || ['Fachsprache', 'Kommunikation', 'Medizinisches Fachwissen'],
+        evaluationCriteria: parsed.evaluationCriteria || ['Sprachkompetenz', 'Kommunikation'],
         checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
         maxTurns,
       },

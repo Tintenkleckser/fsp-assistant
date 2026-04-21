@@ -89,7 +89,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
   const hasChecklist = checklistResults.length > 0;
   const docScore = data?.evaluation?.docScore;
   const hasDoc = data?.documentation != null && data.documentation.length > 0;
-  const simType = data?.template?.type || 'oral_exam';
+  const simType = data?.template?.type || 'patient_conversation';
 
   // Calculate overall score - prefer scores object, use checklist as supplement
   let avgScore = 0;
@@ -304,7 +304,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
           </Card>
 
           {/* Documentation Evaluation */}
-          {(docScore != null || (simType !== 'oral_exam' && data?.documentation)) && (
+          {(docScore != null || (simType === 'documentation' && data?.documentation)) && (
             <Card className="mb-6">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">

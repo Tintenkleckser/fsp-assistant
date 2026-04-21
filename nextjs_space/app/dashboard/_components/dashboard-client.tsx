@@ -7,9 +7,9 @@ import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Trophy, Clock, TrendingUp, TrendingDown, BookOpenCheck, ChevronRight, BarChart3, MessageSquare, PenTool, Users, Stethoscope, Sparkles, Filter, X, ClipboardList, Target, BookOpen, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
+import { Play, Trophy, Clock, TrendingUp, TrendingDown, ChevronRight, BarChart3, Users, Stethoscope, Sparkles, Filter, X, ClipboardList, Target, BookOpen, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DIFFICULTY_LEVELS } from '@/lib/topic-categories';
+import { DIFFICULTY_LEVELS, SIMULATION_TYPES } from '@/lib/topic-categories';
 
 interface SimTemplate {
   id: string;
@@ -300,14 +300,7 @@ export function DashboardClient() {
               </Badge>
             ))}
             <span className="text-muted-foreground">|</span>
-            {[
-              { id: 'vocab_test', de: 'Vokabeln', tr: 'Kelime' },
-              { id: 'free_conversation', de: 'Freies Gespräch', tr: 'Serbest' },
-              { id: 'patient_conversation', de: 'Arzt-Patient', tr: 'Doktor-Hasta' },
-              { id: 'documentation', de: 'Dokumentation', tr: 'Dokümantasyon' },
-              { id: 'comprehension', de: 'Textverständnis', tr: 'Metin' },
-              { id: 'doctor_conversation', de: 'Arzt-Arzt', tr: 'Doktor-Doktor' },
-            ].map(tp => (
+            {SIMULATION_TYPES.map(st => ({ id: st.id, de: st.shortDe, tr: st.shortTr })).map(tp => (
               <Badge
                 key={tp.id}
                 variant={filterType === tp.id ? 'default' : 'outline'}
@@ -334,19 +327,16 @@ export function DashboardClient() {
               })
               .map((tmpl: SimTemplate, idx: number) => {
               const typeConfig: Record<string, { icon: any; label: string; labelTr: string; color: string }> = {
-                vocab_test: { icon: BookOpenCheck, label: 'Verständnistest', labelTr: 'Anlama Testi', color: 'text-indigo-600 bg-indigo-500/10' },
-                free_conversation: { icon: MessageSquare, label: 'Freies Gespräch', labelTr: 'Serbest Görüşme', color: 'text-blue-600 bg-blue-500/10' },
-                patient_conversation: { icon: Users, label: 'Arzt-Patient-Gespräch', labelTr: 'Doktor-Hasta Görüşmesi', color: 'text-green-600 bg-green-500/10' },
-                documentation: { icon: ClipboardList, label: 'Dokumentation', labelTr: 'Dokümantasyon', color: 'text-teal-600 bg-teal-500/10' },
-                comprehension: { icon: PenTool, label: 'Textverständnis', labelTr: 'Metin Anlama', color: 'text-purple-600 bg-purple-500/10' },
-                doctor_conversation: { icon: Stethoscope, label: 'Arzt-Arzt-Gespräch', labelTr: 'Doktor-Doktor Görüşmesi', color: 'text-orange-600 bg-orange-500/10' },
+                patient_conversation: { icon: Users, label: 'Teil 1: Anamnese', labelTr: 'Bölüm 1: Öykü Alma', color: 'text-green-600 bg-green-500/10' },
+                documentation: { icon: ClipboardList, label: 'Teil 2: Dokumentation', labelTr: 'Bölüm 2: Dokümantasyon', color: 'text-teal-600 bg-teal-500/10' },
+                doctor_conversation: { icon: Stethoscope, label: 'Teil 3: Übergabe', labelTr: 'Bölüm 3: Devir Teslim', color: 'text-orange-600 bg-orange-500/10' },
               };
               const difficultyConfig: Record<string, { label: string; labelTr: string; variant: 'default' | 'secondary' | 'destructive' }> = {
                 beginner: { label: 'Einsteiger', labelTr: 'Başlangıç', variant: 'secondary' },
                 intermediate: { label: 'Mittel', labelTr: 'Orta', variant: 'default' },
                 advanced: { label: 'Fortgeschritten', labelTr: 'İleri', variant: 'destructive' },
               };
-              const tc = typeConfig[tmpl?.type] ?? typeConfig.vocab_test;
+              const tc = typeConfig[tmpl?.type] ?? typeConfig.patient_conversation;
               const dc = difficultyConfig[tmpl?.difficulty] ?? difficultyConfig.intermediate;
               const TypeIcon = tc.icon;
 

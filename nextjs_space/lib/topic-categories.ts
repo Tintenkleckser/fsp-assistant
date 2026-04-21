@@ -1,110 +1,14 @@
 /**
- * Topic categories for the FSP (Fachsprachenprüfung) for foreign doctors.
- * These represent the main medical content areas used for exam simulations.
+ * FSP (Fachsprachenprüfung) – Prüfungsteile und Konfiguration
+ * 
+ * Die FSP für ausländische Ärzte in Deutschland hat DREI Teile:
+ * 1. Arzt-Patienten-Gespräch (Anamnese) – Verstehen & Sprechen in Laiensprache
+ * 2. Dokumentation – Schnelle Kurznotizen (Halbsätze) + ausführlicher Arztbrief (ganze Sätze)
+ * 3. Arzt-Arzt-Gespräch (Übergabe) – Fallvorstellung an einen Kollegen in Fachsprache
+ * 
+ * Es geht NICHT um medizinisches Fachwissen, sondern um SPRACHKOMPETENZ
+ * im klinischen Alltag (Notaufnahme / stationäre Aufnahme).
  */
-
-export interface TopicCategory {
-  id: string;
-  titleDe: string;
-  titleTr: string;
-  descriptionDe: string;
-  descriptionTr: string;
-  keywords: string[];
-  icon: string;
-}
-
-export const TOPIC_CATEGORIES: TopicCategory[] = [
-  {
-    id: 'innere_medizin',
-    titleDe: 'Innere Medizin',
-    titleTr: 'İç Hastalıkları',
-    descriptionDe: 'Kardiologie, Pneumologie, Gastroenterologie, Endokrinologie, Nephrologie',
-    descriptionTr: 'Kardiyoloji, pnömoloji, gastroenteroloji, endokrinoloji, nefroloji',
-    keywords: ['innere medizin', 'kardiologie', 'pneumologie', 'gastroenterologie', 'diabetes', 'herzinsuffizienz', 'copd'],
-    icon: 'HeartPulse',
-  },
-  {
-    id: 'chirurgie',
-    titleDe: 'Chirurgie',
-    titleTr: 'Cerrahi',
-    descriptionDe: 'Allgemeinchirurgie, Unfallchirurgie, Viszeralchirurgie, prä-/postoperative Versorgung',
-    descriptionTr: 'Genel cerrahi, travma cerrahisi, visseral cerrahi, pre/postoperatif bakım',
-    keywords: ['chirurgie', 'operation', 'appendektomie', 'fraktur', 'wundversorgung', 'postoperativ'],
-    icon: 'Scissors',
-  },
-  {
-    id: 'neurologie',
-    titleDe: 'Neurologie',
-    titleTr: 'Nöroloji',
-    descriptionDe: 'Schlaganfall, Epilepsie, Multiple Sklerose, Kopfschmerzen, Bewusstseinsstörungen',
-    descriptionTr: 'İnme, epilepsi, multipl skleroz, baş ağrısı, bilinç bozuklukları',
-    keywords: ['neurologie', 'schlaganfall', 'epilepsie', 'kopfschmerz', 'bewusstlosigkeit', 'lähmung'],
-    icon: 'Brain',
-  },
-  {
-    id: 'orthopaedie',
-    titleDe: 'Orthopädie & Unfallchirurgie',
-    titleTr: 'Ortopedi ve Travma Cerrahisi',
-    descriptionDe: 'Frakturen, Gelenkerkrankungen, Rückenschmerzen, Sportverletzungen',
-    descriptionTr: 'Kırıklar, eklem hastalıkları, sırt ağrısı, spor yaralanmaları',
-    keywords: ['orthopädie', 'fraktur', 'gelenk', 'rückenschmerzen', 'prothese', 'arthrose'],
-    icon: 'Bone',
-  },
-  {
-    id: 'gynaekologie',
-    titleDe: 'Gynäkologie & Geburtshilfe',
-    titleTr: 'Jinekoloji ve Doğum',
-    descriptionDe: 'Schwangerschaftsvorsorge, Geburt, gynäkologische Erkrankungen',
-    descriptionTr: 'Gebelik takibi, doğum, jinekolojik hastalıklar',
-    keywords: ['gynäkologie', 'geburtshilfe', 'schwangerschaft', 'geburt', 'vorsorge'],
-    icon: 'Baby',
-  },
-  {
-    id: 'paediatrie',
-    titleDe: 'Pädiatrie',
-    titleTr: 'Pediatri',
-    descriptionDe: 'Kinderuntersuchungen, Infektionskrankheiten, Entwicklungsstörungen',
-    descriptionTr: 'Çocuk muayeneleri, enfeksiyon hastalıkları, gelişim bozuklukları',
-    keywords: ['pädiatrie', 'kinder', 'fieber', 'impfung', 'entwicklung', 'vorsorgeuntersuchung'],
-    icon: 'Baby',
-  },
-  {
-    id: 'notfallmedizin',
-    titleDe: 'Notfallmedizin',
-    titleTr: 'Acil Tıp',
-    descriptionDe: 'Akutes Abdomen, Thoraxschmerz, Atemnot, Bewusstlosigkeit, Polytrauma',
-    descriptionTr: 'Akut karın, göğüs ağrısı, nefes darlığı, bilinç kaybı, politravma',
-    keywords: ['notfall', 'reanimation', 'schock', 'atemnot', 'thoraxschmerz', 'akutes abdomen'],
-    icon: 'AlertTriangle',
-  },
-  {
-    id: 'psychiatrie',
-    titleDe: 'Psychiatrie & Psychosomatik',
-    titleTr: 'Psikiyatri ve Psikosomatik',
-    descriptionDe: 'Depression, Angststörungen, Suizidalität, Suchterkrankungen',
-    descriptionTr: 'Depresyon, anksiyete bozuklukları, intihar eğilimi, bağımlılık hastalıkları',
-    keywords: ['psychiatrie', 'depression', 'angst', 'suizidalität', 'sucht', 'psychosomatik'],
-    icon: 'Brain',
-  },
-  {
-    id: 'dermatologie',
-    titleDe: 'Dermatologie',
-    titleTr: 'Dermatoloji',
-    descriptionDe: 'Hauterkrankungen, Allergien, Wundheilung',
-    descriptionTr: 'Cilt hastalıkları, alerjiler, yara iyileşmesi',
-    keywords: ['dermatologie', 'haut', 'allergie', 'ekzem', 'wundheilung'],
-    icon: 'Scan',
-  },
-  {
-    id: 'allgemeinmedizin',
-    titleDe: 'Allgemeinmedizin',
-    titleTr: 'Genel Tıp',
-    descriptionDe: 'Hausärztliche Versorgung, Prävention, chronische Erkrankungen, Impfberatung',
-    descriptionTr: 'Aile hekimliği, önleme, kronik hastalıklar, aşı danışmanlığı',
-    keywords: ['allgemeinmedizin', 'hausarzt', 'prävention', 'chronisch', 'impfung', 'vorsorge'],
-    icon: 'Stethoscope',
-  },
-];
 
 export const DIFFICULTY_LEVELS = [
   { id: 'beginner', labelDe: 'Einsteiger', labelTr: 'Başlangıç', color: 'bg-green-500/10 text-green-700', badgeVariant: 'secondary' as const },
@@ -113,21 +17,58 @@ export const DIFFICULTY_LEVELS = [
 ];
 
 /**
- * FSP Exam Parts:
- * 1. Verständnistest (vocab_test) - Fachsprache ↔ Patientensprache / Latein
- * 2. Freies Gespräch (free_conversation) - Allgemeines ärztliches Gespräch
- * 3. Arzt-Patient-Gespräch (patient_conversation) - Anamnesegespräch
- * 4. Dokumentation (documentation) - Anamnesebogen schreiben
- * 5. Textverständnis (comprehension) - Arztbriefe lesen, Telefonanrufe
- * 6. Arzt-Arzt-Gespräch (doctor_conversation) - Fachsprachliches Kollegengespräch
+ * Die drei Teile der Fachsprachenprüfung (FSP).
+ * 
+ * Teil 1: Arzt-Patienten-Gespräch (Anamnese)
+ *   - Der Arzt führt ein Aufnahmegespräch mit einem Patienten
+ *   - Laienverständliche Sprache ist Pflicht
+ *   - Systematische Anamnese unter Zeitdruck
+ *   - Empathie und Eingehen auf Patientensorgen
+ * 
+ * Teil 2: Dokumentation
+ *   - Schnelle Dokumentation (Halbsätze, Stichworte) – wie auf Station
+ *   - Ausführlicher Arztbrief (ganze Sätze) – Aufnahmebericht
+ *   - Verdachtsdiagnose in Fachsprache
+ * 
+ * Teil 3: Arzt-Arzt-Gespräch (Übergabe)
+ *   - Strukturierte Fallvorstellung an einen Kollegen
+ *   - Fachsprache ist hier gefordert
+ *   - Medizinische Fehler werden NICHT bewertet, nur Sprachkompetenz
  */
 export const SIMULATION_TYPES = [
-  { id: 'vocab_test', labelDe: 'Vokabeltest (Teil 1)', labelTr: 'Kelime Testi (Bölüm 1)', icon: 'BookOpen', timeLimitMin: 25 },
-  { id: 'free_conversation', labelDe: 'Freies Gespräch (Teil 2)', labelTr: 'Serbest Görüşme (Bölüm 2)', icon: 'MessageCircle', timeLimitMin: 15 },
-  { id: 'patient_conversation', labelDe: 'Arzt-Patient-Gespräch (Teil 3)', labelTr: 'Doktor-Hasta Görüşmesi (Bölüm 3)', icon: 'Users', timeLimitMin: 20 },
-  { id: 'documentation', labelDe: 'Dokumentation (Teil 4)', labelTr: 'Dokümantasyon (Bölüm 4)', icon: 'ClipboardList', timeLimitMin: 25 },
-  { id: 'comprehension', labelDe: 'Textverständnis (Teil 5)', labelTr: 'Metin Anlama (Bölüm 5)', icon: 'FileText', timeLimitMin: 20 },
-  { id: 'doctor_conversation', labelDe: 'Arzt-Arzt-Gespräch (Teil 6)', labelTr: 'Doktor-Doktor Görüşmesi (Bölüm 6)', icon: 'Stethoscope', timeLimitMin: 20 },
+  {
+    id: 'patient_conversation',
+    labelDe: 'Teil 1: Arzt-Patienten-Gespräch',
+    labelTr: 'Bölüm 1: Doktor-Hasta Görüşmesi',
+    shortDe: 'Anamnese',
+    shortTr: 'Öykü Alma',
+    descriptionDe: 'Führen Sie ein Anamnesegespräch mit einem Patienten in laienverständlicher Sprache. Verstehen, Sprechen und Empathie unter Zeitdruck.',
+    descriptionTr: 'Bir hasta ile anlaşılır dilde öykü görüşmesi yapın. Anlama, konuşma ve empati, zaman baskısı altında.',
+    icon: 'Users',
+    timeLimitMin: 20,
+  },
+  {
+    id: 'documentation',
+    labelDe: 'Teil 2: Dokumentation',
+    labelTr: 'Bölüm 2: Dokümantasyon',
+    shortDe: 'Dokumentation',
+    shortTr: 'Dokümantasyon',
+    descriptionDe: 'Erstellen Sie eine schnelle Kurzdokumentation (Halbsätze) und einen ausführlichen Aufnahmebericht (ganze Sätze). Verdachtsdiagnose in Fachsprache.',
+    descriptionTr: 'Hızlı kısa dokümantasyon (yarım cümleler) ve ayrıntılı kabul raporu (tam cümleler) oluşturun. Ön tanı tıbbi terminoloji ile.',
+    icon: 'ClipboardList',
+    timeLimitMin: 20,
+  },
+  {
+    id: 'doctor_conversation',
+    labelDe: 'Teil 3: Arzt-Arzt-Gespräch',
+    labelTr: 'Bölüm 3: Doktor-Doktor Görüşmesi',
+    shortDe: 'Übergabe',
+    shortTr: 'Devir Teslim',
+    descriptionDe: 'Stellen Sie einem Kollegen den Patientenfall in medizinischer Fachsprache vor. Strukturierte Übergabe wie im Klinikalltag.',
+    descriptionTr: 'Bir meslektaşınıza hasta vakasını tıbbi terminoloji ile sunun. Klinik günlük pratiğindeki gibi yapılandırılmış devir teslim.',
+    icon: 'Stethoscope',
+    timeLimitMin: 20,
+  },
 ];
 
 /**
