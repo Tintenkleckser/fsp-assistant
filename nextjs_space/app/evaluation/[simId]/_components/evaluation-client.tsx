@@ -81,15 +81,17 @@ export function EvaluationClient({ simId }: { simId: string }) {
   // Calculate overall score from checklist if available
   let avgScore = 0;
   if (hasChecklist) {
-    const totalWeight = checklist.reduce((sum: number, item: any) => sum + (item.weight || 1), 0);
+    const totalWeight = checklist.reduce((sum: number, item: any) => sum + (Number(item.weight) || 1), 0);
     const weightedScore = checklistResults.reduce((sum: number, r: ChecklistResult) => {
-      const matchingItem = checklist.find((c: any) => c.id === r.id);
-      const weight = matchingItem?.weight || 1;
-      return sum + (r.score / 10) * weight;
+      const matchingItem = checklist.find((c: any) => String(c.id) === String(r.id));
+      const weight = Number(matchingItem?.weight) || 1;
+      const score = Number(r.score) || 0;
+      return sum + (score / 10) * weight;
     }, 0);
     avgScore = totalWeight > 0 ? (weightedScore / totalWeight) * 10 : 0;
   } else if (scoreKeys.length > 0) {
-    avgScore = (Object.values(scores).reduce((a: any, b: any) => (Number(a) || 0) + (Number(b) || 0), 0) as number) / scoreKeys.length;
+    const total = scoreKeys.reduce((sum: number, key: string) => sum + (Number(scores[key]) || 0), 0);
+    avgScore = total / scoreKeys.length;
   }
 
   // Include doc score in overall if applicable

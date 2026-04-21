@@ -142,7 +142,7 @@ WICHTIG:
         descriptionTr: parsed.descriptionTr || topic.descriptionTr,
         systemPrompt: parsed.systemPrompt || '',
         evaluationCriteria: parsed.evaluationCriteria || ['Fachsprache', 'Kommunikation', 'Medizinisches Fachwissen'],
-        checklist: parsed.checklist || [],
+        checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
         maxTurns,
       },
     });

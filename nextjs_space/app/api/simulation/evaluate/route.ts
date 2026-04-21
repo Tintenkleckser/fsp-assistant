@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
 
     const isBilingual = languageMode === 'bilingual';
     const simType = template?.type || 'oral_exam';
-    const checklist = (template?.checklist as any[]) || [];
+    const rawChecklist = template?.checklist;
+    const checklist: any[] = Array.isArray(rawChecklist) ? rawChecklist : [];
     const hasChecklist = checklist.length > 0;
     const hasDocumentation = !!(documentation || sim?.documentation);
     const docText = documentation || sim?.documentation || '';
@@ -158,7 +159,11 @@ Respond with raw JSON only. Do not include code blocks, markdown, or any other f
 
     let evalResult: any;
     try {
-      evalResult = JSON.parse(rawContent);
+      const cleanContent = rawContent.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      evalResult = JSON.parse(cleanContent);
+      console.log('Evaluation parsed successfully. Keys:', Object.keys(evalResult));
+      console.log('Scores:', JSON.stringify(evalResult?.scores));
+      console.log('checklistResults count:', Array.isArray(evalResult?.checklistResults) ? evalResult.checklistResults.length : 'not an array');
     } catch (e: any) {
       console.error('Failed to parse evaluation JSON:', rawContent);
       evalResult = {
@@ -167,6 +172,11 @@ Respond with raw JSON only. Do not include code blocks, markdown, or any other f
         feedback_de: 'Bewertung konnte nicht korrekt generiert werden.',
         feedback_tr: isBilingual ? 'Değerlendirme doğru bir şekilde oluşturulamadı.' : '',
       };
+    }
+
+    // Ensure checklistResults is always an array
+    if (!Array.isArray(evalResult.checklistResults)) {
+      evalResult.checklistResults = [];
     }
 
     // Save evaluation
