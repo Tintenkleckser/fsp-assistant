@@ -15,6 +15,7 @@ model Profile {
   nativeLanguage String           @default("tr") @map("native_language")
   createdAt      DateTime         @default(now()) @map("created_at")
   simulations    UserSimulation[]
+  progress       FspProgress[]
 
   @@map("profiles")
 }
@@ -90,6 +91,24 @@ model GlossaryTerm {
   contextTr String @map("context_tr") @db.Text
 
   @@map("glossary_terms")
+}
+
+model FspProgress {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  sessionDate      DateTime @default(now()) @map("session_date")
+  topic            String?
+  proficiencyLevel Int?     @map("proficiency_level")
+  feedbackSummary  String?  @map("feedback_summary") @db.Text
+  newVocabulary    String[] @default([]) @map("new_vocabulary")
+  rawTranscript    String?  @map("raw_transcript") @db.Text
+  simulationId     String?  @map("simulation_id")
+  simulationType   String?  @map("simulation_type")
+  user             Profile  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionDate(sort: Desc)])
+  @@map("fsp_progress")
 }
 
 model HandbookSection {

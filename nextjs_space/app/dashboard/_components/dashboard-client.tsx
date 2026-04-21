@@ -7,7 +7,7 @@ import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Play, Trophy, Clock, TrendingUp, BookOpenCheck, ChevronRight, BarChart3, MessageSquare, PenTool, Users, Stethoscope, Sparkles, Filter, X, ClipboardList } from 'lucide-react';
+import { Play, Trophy, Clock, TrendingUp, TrendingDown, BookOpenCheck, ChevronRight, BarChart3, MessageSquare, PenTool, Users, Stethoscope, Sparkles, Filter, X, ClipboardList, Target, BookOpen, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DIFFICULTY_LEVELS } from '@/lib/topic-categories';
 
@@ -33,12 +33,23 @@ interface SimHistory {
   _count: { interactions: number };
 }
 
+interface ProgressEntry {
+  id: string;
+  sessionDate: string;
+  topic: string | null;
+  proficiencyLevel: number | null;
+  feedbackSummary: string | null;
+  newVocabulary: string[];
+  simulationType: string | null;
+}
+
 export function DashboardClient() {
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const router = useRouter();
   const [templates, setTemplates] = useState<SimTemplate[]>([]);
   const [history, setHistory] = useState<SimHistory[]>([]);
+  const [progress, setProgress] = useState<ProgressEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterDifficulty, setFilterDifficulty] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string | null>(null);
@@ -47,14 +58,17 @@ export function DashboardClient() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [tRes, hRes] = await Promise.all([
+        const [tRes, hRes, pRes] = await Promise.all([
           fetch('/api/templates'),
           fetch('/api/simulations'),
+          fetch('/api/progress'),
         ]);
         const tData = await tRes?.json?.();
         const hData = await hRes?.json?.();
+        const pData = await pRes?.json?.();
         setTemplates(tData ?? []);
         setHistory(hData ?? []);
+        setProgress(pData ?? []);
       } catch (e: any) {
         console.error('Dashboard fetch error:', e);
       } finally {
@@ -146,6 +160,118 @@ export function DashboardClient() {
             </Card>
           </motion.div>
         </div>
+
+        {/* Progress Section */}
+        {progress.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mb-8">
+            <h2 className="font-display text-xl font-bold tracking-tight mb-4">{t('dashboard.progressTitle')}</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {/* Average Proficiency */}
+              {(() => {
+                const withScores = progress.filter(p => p.proficiencyLevel != null);
+                const avg = withScores.length > 0
+                  ? (withScores.reduce((sum, p) => sum + (p.proficiencyLevel ?? 0), 0) / withScores.length)
+                  : 0;
+                return (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                          <Target className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('dashboard.avgProficiency')}</p>
+                          <p className="text-2xl font-bold">{avg > 0 ? `${avg.toFixed(1)}/10` : '-'}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Trend */}
+              {(() => {
+                const withScores = progress.filter(p => p.proficiencyLevel != null);
+                let trendType: 'improving' | 'stable' | 'declining' = 'stable';
+                if (withScores.length >= 2) {
+                  const recent = withScores.slice(0, Math.ceil(withScores.length / 2));
+                  const older = withScores.slice(Math.ceil(withScores.length / 2));
+                  const recentAvg = recent.reduce((s, p) => s + (p.proficiencyLevel ?? 0), 0) / recent.length;
+                  const olderAvg = older.reduce((s, p) => s + (p.proficiencyLevel ?? 0), 0) / older.length;
+                  if (recentAvg > olderAvg + 0.5) trendType = 'improving';
+                  else if (recentAvg < olderAvg - 0.5) trendType = 'declining';
+                }
+                const TrendIcon = trendType === 'improving' ? ArrowUpRight : trendType === 'declining' ? ArrowDownRight : Minus;
+                const trendColor = trendType === 'improving' ? 'text-green-600 bg-green-500/10' : trendType === 'declining' ? 'text-red-600 bg-red-500/10' : 'text-yellow-600 bg-yellow-500/10';
+                return (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${trendColor}`}>
+                          <TrendIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('dashboard.trend')}</p>
+                          <p className="text-lg font-semibold">{t(`dashboard.${trendType}`)}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Vocabulary Count */}
+              {(() => {
+                const allVocab = new Set(progress.flatMap(p => p.newVocabulary ?? []));
+                return (
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                          <BookOpen className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">{t('dashboard.vocabularyLearned')}</p>
+                          <p className="text-2xl font-bold">{allVocab.size}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+            </div>
+
+            {/* Progress Chart (simple bar visualization) */}
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground mb-4">{t('dashboard.recentSessions')}</p>
+                <div className="space-y-3">
+                  {progress.slice(0, 8).map((entry) => {
+                    const level = entry.proficiencyLevel ?? 0;
+                    const pct = Math.min(level * 10, 100);
+                    const barColor = level >= 7 ? 'bg-green-500' : level >= 5 ? 'bg-yellow-500' : 'bg-red-500';
+                    return (
+                      <div key={entry.id} className="flex items-center gap-3">
+                        <div className="w-32 sm:w-48 text-xs text-muted-foreground truncate shrink-0">
+                          {entry.topic ?? entry.simulationType ?? '-'}
+                        </div>
+                        <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden relative">
+                          <div className={`h-full rounded-full transition-all duration-500 ${barColor}`} style={{ width: `${pct}%` }} />
+                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+                            {level > 0 ? `${level}/10` : '-'}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground w-16 text-right shrink-0">
+                          {entry.sessionDate ? new Date(entry.sessionDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'de-DE', { day: '2-digit', month: '2-digit' }) : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Available Scenarios */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>

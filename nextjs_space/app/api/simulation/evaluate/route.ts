@@ -199,6 +199,42 @@ Respond with raw JSON only. Do not include code blocks, markdown, or any other f
       data: { status: 'completed', completedAt: new Date() },
     });
 
+    // Save progress entry
+    try {
+      const scores = evalResult?.scores ?? {};
+      const scoreValues = Object.values(scores).filter((v: any) => typeof v === 'number') as number[];
+      const avgScore = scoreValues.length > 0
+        ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
+        : null;
+
+      // Extract new vocabulary from conversation
+      const vocabTerms: string[] = [];
+      if (evalResult?.checklistResults) {
+        for (const item of evalResult.checklistResults) {
+          if (item?.commentDe && item.commentDe.length > 3) {
+            // Extract medical terms mentioned in comments
+            const termMatch = item.commentDe.match(/[A-ZÄÖÜ][a-zäöüß]+(?:[-][a-zäöüß]+)*/g);
+            if (termMatch) vocabTerms.push(...termMatch.slice(0, 3));
+          }
+        }
+      }
+
+      await prisma.fspProgress.create({
+        data: {
+          userId: user.id,
+          topic: template?.titleDe ?? simType,
+          proficiencyLevel: avgScore,
+          feedbackSummary: (evalResult?.feedback_de ?? '').substring(0, 500),
+          newVocabulary: [...new Set(vocabTerms)].slice(0, 20),
+          rawTranscript: conversationText.substring(0, 5000),
+          simulationId: simId,
+          simulationType: simType,
+        },
+      });
+    } catch (progressErr: any) {
+      console.error('Failed to save progress (non-critical):', progressErr?.message);
+    }
+
     return NextResponse.json({ id: evaluation?.id, evaluationId: evaluation?.id });
   } catch (error: any) {
     console.error('Evaluation route error:', error);
