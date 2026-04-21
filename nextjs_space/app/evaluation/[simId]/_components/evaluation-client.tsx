@@ -71,17 +71,37 @@ export function EvaluationClient({ simId }: { simId: string }) {
 
   const scores = data?.evaluation?.scores ?? {};
   const scoreKeys = Object.keys(scores ?? {});
-  const checklistResults = data?.evaluation?.checklistResults ?? [];
-  const checklist = data?.template?.checklist ?? [];
+  // Flatten nested arrays and ensure correct structure
+  let rawChecklistResults = data?.evaluation?.checklistResults ?? [];
+  if (!Array.isArray(rawChecklistResults)) rawChecklistResults = [];
+  while (rawChecklistResults.length > 0 && Array.isArray(rawChecklistResults[0])) {
+    rawChecklistResults = rawChecklistResults.flat();
+  }
+  const checklistResults: ChecklistResult[] = rawChecklistResults.map((r: any, idx: number) => ({
+    id: String(r?.id ?? idx + 1),
+    fulfilled: r?.fulfilled ?? r?.correct ?? false,
+    score: Number(r?.score) || 0,
+    commentDe: r?.commentDe || r?.comment_de || r?.comment || r?.task || '',
+    commentTr: r?.commentTr || r?.comment_tr || '',
+  }));
+  const rawChecklist = data?.template?.checklist;
+  const checklist: any[] = Array.isArray(rawChecklist) ? rawChecklist : [];
   const hasChecklist = checklistResults.length > 0;
   const docScore = data?.evaluation?.docScore;
   const hasDoc = data?.documentation != null && data.documentation.length > 0;
   const simType = data?.template?.type || 'oral_exam';
 
-  // Calculate overall score from checklist if available
+  // Calculate overall score - prefer scores object, use checklist as supplement
   let avgScore = 0;
-  if (hasChecklist) {
-    const totalWeight = checklist.reduce((sum: number, item: any) => sum + (Number(item.weight) || 1), 0);
+  if (scoreKeys.length > 0) {
+    const total = scoreKeys.reduce((sum: number, key: string) => sum + (Number(scores[key]) || 0), 0);
+    avgScore = total / scoreKeys.length;
+  } else if (hasChecklist) {
+    // Fallback: calculate from checklist scores
+    const totalWeight = checklistResults.reduce((sum: number, r: ChecklistResult) => {
+      const matchingItem = checklist.find((c: any) => String(c.id) === String(r.id));
+      return sum + (Number(matchingItem?.weight) || 1);
+    }, 0);
     const weightedScore = checklistResults.reduce((sum: number, r: ChecklistResult) => {
       const matchingItem = checklist.find((c: any) => String(c.id) === String(r.id));
       const weight = Number(matchingItem?.weight) || 1;
@@ -89,9 +109,6 @@ export function EvaluationClient({ simId }: { simId: string }) {
       return sum + (score / 10) * weight;
     }, 0);
     avgScore = totalWeight > 0 ? (weightedScore / totalWeight) * 10 : 0;
-  } else if (scoreKeys.length > 0) {
-    const total = scoreKeys.reduce((sum: number, key: string) => sum + (Number(scores[key]) || 0), 0);
-    avgScore = total / scoreKeys.length;
   }
 
   // Include doc score in overall if applicable
@@ -121,15 +138,28 @@ export function EvaluationClient({ simId }: { simId: string }) {
     beobachtung: { de: 'Beobachtung & Erkennung', tr: 'Gözlem & Tanıma' },
   };
 
-  // Group checklist by category
+  // Group checklist by category - handle both matched and unmatched results
   const checklistByCategory: Record<string, { item: any; result: ChecklistResult }[]> = {};
   if (hasChecklist) {
+    const usedResultIds = new Set<string>();
+    // First: match checklist items to results
     checklist.forEach((item: any) => {
-      const result = checklistResults.find((r: ChecklistResult) => r.id === item.id);
+      const result = checklistResults.find((r: ChecklistResult) => String(r.id) === String(item.id));
       if (!result) return;
-      const cat = item.category || 'Sonstiges';
+      usedResultIds.add(result.id);
+      const cat = item.category || 'Ergebnis';
       if (!checklistByCategory[cat]) checklistByCategory[cat] = [];
       checklistByCategory[cat].push({ item, result });
+    });
+    // Second: add any unmatched results (Mistral returned different IDs)
+    checklistResults.forEach((result: ChecklistResult) => {
+      if (usedResultIds.has(result.id)) return;
+      const cat = 'Ergebnis';
+      if (!checklistByCategory[cat]) checklistByCategory[cat] = [];
+      checklistByCategory[cat].push({
+        item: { id: result.id, textDe: result.commentDe, textTr: result.commentTr, weight: 1, category: cat },
+        result,
+      });
     });
   }
 

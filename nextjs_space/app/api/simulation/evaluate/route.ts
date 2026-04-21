@@ -174,10 +174,39 @@ Respond with raw JSON only. Do not include code blocks, markdown, or any other f
       };
     }
 
-    // Ensure checklistResults is always an array
-    if (!Array.isArray(evalResult.checklistResults)) {
-      evalResult.checklistResults = [];
+    // Normalize checklistResults: flatten nested arrays and ensure correct structure
+    let rawResults = evalResult.checklistResults;
+    if (!Array.isArray(rawResults)) rawResults = [];
+    // Flatten nested arrays like [[{...}]] → [{...}]
+    while (rawResults.length > 0 && Array.isArray(rawResults[0])) {
+      rawResults = rawResults.flat();
     }
+    // Map to expected structure if Mistral returned a different format
+    evalResult.checklistResults = rawResults.map((r: any, idx: number) => {
+      // If it already has the expected structure
+      if (r.id && (r.fulfilled !== undefined || r.score !== undefined)) {
+        return {
+          id: String(r.id),
+          fulfilled: r.fulfilled ?? (Number(r.score) >= 5),
+          score: Number(r.score) || 0,
+          commentDe: r.commentDe || r.comment_de || r.comment || '',
+          commentTr: r.commentTr || r.comment_tr || '',
+        };
+      }
+      // Alternative format from Mistral: { task, correct, expectedAnswer, candidateAnswer }
+      const matchingChecklistItem = checklist[idx];
+      const isFulfilled = r.correct === true || r.fulfilled === true || r.passed === true;
+      return {
+        id: matchingChecklistItem?.id || String(idx + 1),
+        fulfilled: isFulfilled,
+        score: r.score != null ? Number(r.score) : (isFulfilled ? 8 : 3),
+        commentDe: r.commentDe || r.comment_de || r.comment || r.feedback ||
+          (r.task ? `${r.task}: ${r.candidateAnswer || r.candidate_answer || ''}` : '') ||
+          (isFulfilled ? 'Korrekt' : 'Nicht erfüllt'),
+        commentTr: r.commentTr || r.comment_tr || '',
+      };
+    });
+    console.log('Normalized checklistResults count:', evalResult.checklistResults.length);
 
     // Save evaluation
     const evaluation = await prisma.evaluation.upsert({
