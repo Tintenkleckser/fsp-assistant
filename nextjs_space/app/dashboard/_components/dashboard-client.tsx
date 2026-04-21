@@ -175,9 +175,12 @@ export function DashboardClient() {
             ))}
             <span className="text-muted-foreground">|</span>
             {[
-              { id: 'oral_exam', de: 'Mündlich', tr: 'Sözlü' },
-              { id: 'patient_conversation', de: 'Gespräch', tr: 'Görüşme' },
-              { id: 'written_task', de: 'Schriftlich', tr: 'Yazılı' },
+              { id: 'vocab_test', de: 'Vokabeln', tr: 'Kelime' },
+              { id: 'free_conversation', de: 'Freies Gespräch', tr: 'Serbest' },
+              { id: 'patient_conversation', de: 'Arzt-Patient', tr: 'Doktor-Hasta' },
+              { id: 'documentation', de: 'Dokumentation', tr: 'Dokümantasyon' },
+              { id: 'comprehension', de: 'Textverständnis', tr: 'Metin' },
+              { id: 'doctor_conversation', de: 'Arzt-Arzt', tr: 'Doktor-Doktor' },
             ].map(tp => (
               <Badge
                 key={tp.id}
@@ -205,17 +208,19 @@ export function DashboardClient() {
               })
               .map((tmpl: SimTemplate, idx: number) => {
               const typeConfig: Record<string, { icon: any; label: string; labelTr: string; color: string }> = {
-                oral_exam: { icon: MessageSquare, label: 'Mündliche Prüfung', labelTr: 'Sözlü Sınav', color: 'text-blue-600 bg-blue-500/10' },
-                written_task: { icon: PenTool, label: 'Schriftliche Aufgabe', labelTr: 'Yazılı Görev', color: 'text-purple-600 bg-purple-500/10' },
-                patient_conversation: { icon: Users, label: 'Patientengespräch', labelTr: 'Hasta Görüşmesi', color: 'text-green-600 bg-green-500/10' },
+                vocab_test: { icon: BookOpenCheck, label: 'Verständnistest', labelTr: 'Anlama Testi', color: 'text-indigo-600 bg-indigo-500/10' },
+                free_conversation: { icon: MessageSquare, label: 'Freies Gespräch', labelTr: 'Serbest Görüşme', color: 'text-blue-600 bg-blue-500/10' },
+                patient_conversation: { icon: Users, label: 'Arzt-Patient-Gespräch', labelTr: 'Doktor-Hasta Görüşmesi', color: 'text-green-600 bg-green-500/10' },
                 documentation: { icon: ClipboardList, label: 'Dokumentation', labelTr: 'Dokümantasyon', color: 'text-teal-600 bg-teal-500/10' },
+                comprehension: { icon: PenTool, label: 'Textverständnis', labelTr: 'Metin Anlama', color: 'text-purple-600 bg-purple-500/10' },
+                doctor_conversation: { icon: Stethoscope, label: 'Arzt-Arzt-Gespräch', labelTr: 'Doktor-Doktor Görüşmesi', color: 'text-orange-600 bg-orange-500/10' },
               };
               const difficultyConfig: Record<string, { label: string; labelTr: string; variant: 'default' | 'secondary' | 'destructive' }> = {
                 beginner: { label: 'Einsteiger', labelTr: 'Başlangıç', variant: 'secondary' },
                 intermediate: { label: 'Mittel', labelTr: 'Orta', variant: 'default' },
                 advanced: { label: 'Fortgeschritten', labelTr: 'İleri', variant: 'destructive' },
               };
-              const tc = typeConfig[tmpl?.type] ?? typeConfig.oral_exam;
+              const tc = typeConfig[tmpl?.type] ?? typeConfig.vocab_test;
               const dc = difficultyConfig[tmpl?.difficulty] ?? difficultyConfig.intermediate;
               const TypeIcon = tc.icon;
 
