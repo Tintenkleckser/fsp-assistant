@@ -235,25 +235,13 @@ Respond with raw JSON only. Do not include code blocks, markdown, or any other f
         ? Math.round(scoreValues.reduce((a, b) => a + b, 0) / scoreValues.length)
         : null;
 
-      // Extract new vocabulary from conversation
-      const vocabTerms: string[] = [];
-      if (evalResult?.checklistResults) {
-        for (const item of evalResult.checklistResults) {
-          if (item?.commentDe && item.commentDe.length > 3) {
-            // Extract medical terms mentioned in comments
-            const termMatch = item.commentDe.match(/[A-ZÄÖÜ][a-zäöüß]+(?:[-][a-zäöüß]+)*/g);
-            if (termMatch) vocabTerms.push(...termMatch.slice(0, 3));
-          }
-        }
-      }
-
       await prisma.fspProgress.create({
         data: {
           userId: user.id,
           topic: template?.titleDe ?? simType,
           proficiencyLevel: avgScore,
           feedbackSummary: (evalResult?.feedback_de ?? '').substring(0, 500),
-          newVocabulary: [...new Set(vocabTerms)].slice(0, 20),
+          newVocabulary: [],
           rawTranscript: conversationText.substring(0, 5000),
           simulationId: simId,
           simulationType: simType,

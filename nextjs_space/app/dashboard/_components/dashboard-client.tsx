@@ -220,9 +220,9 @@ export function DashboardClient() {
                 );
               })()}
 
-              {/* Vocabulary Count */}
+              {/* Sessions count */}
               {(() => {
-                const allVocab = new Set(progress.flatMap(p => p.newVocabulary ?? []));
+                const totalSessions = progress.length;
                 return (
                   <Card>
                     <CardContent className="pt-6">
@@ -231,8 +231,8 @@ export function DashboardClient() {
                           <BookOpen className="h-5 w-5 text-indigo-600" />
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">{t('dashboard.vocabularyLearned')}</p>
-                          <p className="text-2xl font-bold">{allVocab.size}</p>
+                          <p className="text-sm text-muted-foreground">{lang === 'tr' ? 'Toplam Oturum' : 'Übungen gesamt'}</p>
+                          <p className="text-2xl font-bold">{totalSessions}</p>
                         </div>
                       </div>
                     </CardContent>
