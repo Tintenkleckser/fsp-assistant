@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Play, BookOpen, Languages, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -118,7 +117,7 @@ export function BriefingClient({ templateId }: { templateId: string }) {
         <AppHeader />
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-          <p className="text-muted-foreground">Szenario nicht gefunden</p>
+          <p className="text-muted-foreground">{t('simulation.exerciseNotCreated')}</p>
           <Button variant="outline" onClick={() => router.push('/dashboard')}>{t('common.back')}</Button>
         </div>
       </div>
@@ -148,23 +147,17 @@ export function BriefingClient({ templateId }: { templateId: string }) {
 
           <Card className="mb-6">
             <CardContent className="p-6">
-              <Tabs defaultValue="de">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="de">Deutsch</TabsTrigger>
-                  <TabsTrigger value="tr">Türkçe</TabsTrigger>
-                </TabsList>
-                <TabsContent value="de">
-                  <h2 className="font-display font-semibold text-lg mb-3">{template?.titleDe ?? ''}</h2>
-                  <p className="text-sm leading-relaxed text-foreground/80">{template?.descriptionDe ?? ''}</p>
-                </TabsContent>
-                <TabsContent value="tr">
-                  <h2 className="font-display font-semibold text-lg mb-3">{template?.titleTr ?? ''}</h2>
-                  <p className="text-sm leading-relaxed text-foreground/80">{template?.descriptionTr ?? ''}</p>
-                </TabsContent>
-              </Tabs>
+              <h2 className="font-display font-semibold text-lg mb-3">
+                {lang === 'tr' ? (template?.titleTr ?? template?.titleDe ?? '') : (template?.titleDe ?? '')}
+              </h2>
+              <p className="text-sm leading-relaxed text-foreground/80">
+                {lang === 'tr'
+                  ? (template?.descriptionTr ?? template?.descriptionDe ?? '')
+                  : (template?.descriptionDe ?? '')}
+              </p>
               <div className="mt-4 flex items-center gap-2">
                 <Badge variant="secondary">{template?.difficulty ?? 'intermediate'}</Badge>
-                <Badge variant="outline">Max. {template?.maxTurns ?? 8} Interaktionen</Badge>
+                <Badge variant="outline">Max. {template?.maxTurns ?? 8} {t('simulation.turnsRemaining')}</Badge>
               </div>
             </CardContent>
           </Card>
