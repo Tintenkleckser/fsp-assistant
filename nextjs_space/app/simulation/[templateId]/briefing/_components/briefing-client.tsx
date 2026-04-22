@@ -7,8 +7,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Play, BookOpen, Languages, AlertTriangle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Play, BookOpen, Languages, AlertTriangle, ClipboardList, Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface ChecklistItem {
+  id: string;
+  textDe: string;
+  textTr: string;
+  weight: number;
+  category?: string;
+}
 
 interface Template {
   id: string;
@@ -18,6 +26,7 @@ interface Template {
   descriptionTr: string;
   difficulty: string;
   maxTurns: number;
+  checklist?: ChecklistItem[] | any;
 }
 
 type SupportLang = 'none' | 'tr' | 'en';
@@ -29,6 +38,7 @@ export function BriefingClient({ templateId }: { templateId: string }) {
   const [supportLang, setSupportLang] = useState<SupportLang>('tr');
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
   const lang = i18n?.language ?? 'de';
 
   // Default support language based on UI language
@@ -161,6 +171,89 @@ export function BriefingClient({ templateId }: { templateId: string }) {
               </div>
             </CardContent>
           </Card>
+
+          {Array.isArray(template?.checklist) && template.checklist.length > 0 && (
+            <Card className="mb-6">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <ClipboardList className="h-5 w-5 text-primary" />
+                    <div>
+                      <Label className="font-medium">{t('simulation.checklistPreviewTitle')}</Label>
+                      <p className="text-xs text-muted-foreground">
+                        {template.checklist.length} {t('simulation.checklistItems')}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowChecklist(v => !v)}
+                    className="gap-1.5 shrink-0"
+                  >
+                    {showChecklist ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">
+                      {showChecklist ? t('simulation.hideChecklist') : t('simulation.showChecklist')}
+                    </span>
+                  </Button>
+                </div>
+                <AnimatePresence initial={false}>
+                  {showChecklist && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pt-4 mt-4 border-t">
+                        <p className="text-xs text-muted-foreground mb-3 italic">
+                          {t('simulation.checklistHint')}
+                        </p>
+                        <ul className="space-y-2">
+                          {(template.checklist as ChecklistItem[]).map((item) => (
+                            <li key={item.id} className="flex items-start gap-2 text-sm">
+                              <span className={`inline-block mt-1.5 h-2 w-2 rounded-full shrink-0 ${
+                                item.weight >= 3 ? 'bg-red-500' : item.weight >= 2 ? 'bg-yellow-500' : 'bg-green-500'
+                              }`} />
+                              <span className="flex-1 leading-relaxed">
+                                {lang === 'tr' ? (item.textTr || item.textDe) : item.textDe}
+                                {item.weight >= 3 && (
+                                  <Badge variant="destructive" className="ml-2 text-[10px] px-1.5 py-0">
+                                    {t('simulation.critical')}
+                                  </Badge>
+                                )}
+                                {item.weight === 2 && (
+                                  <Badge variant="secondary" className="ml-2 text-[10px] px-1.5 py-0">
+                                    {t('simulation.important')}
+                                  </Badge>
+                                )}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="mt-4 pt-3 border-t flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-red-500" />
+                            {t('simulation.critical')}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                            {t('simulation.important')}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            {t('simulation.normal')}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="mb-6">
             <CardContent className="p-6">
