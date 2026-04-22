@@ -197,7 +197,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
                   <p className="text-sm text-muted-foreground">{t('evaluation.outOf')}</p>
                   {hasChecklist && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {lang === 'tr' ? 'Kontrol listesi' : 'Checkliste'}: {fulfilledCount}/{totalCount} {lang === 'tr' ? 'tamamlandı' : 'erfüllt'}
+                      {t('evaluation.checklist')}: {fulfilledCount}/{totalCount} {t('evaluation.fulfilled')}
                     </p>
                   )}
                 </div>
@@ -211,7 +211,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <ClipboardList className="h-5 w-5 text-primary" />
-                  {lang === 'tr' ? 'Kontrol Listesi Sonuçları' : 'Checklisten-Ergebnisse'}
+                  {t('evaluation.checklistResults')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -244,12 +244,12 @@ export function EvaluationClient({ simId }: { simId: string }) {
                               </span>
                               {item.weight >= 3 && (
                                 <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                  {lang === 'tr' ? 'Kritik' : 'Kritisch'}
+                                  {t('simulation.critical')}
                                 </Badge>
                               )}
                               {item.weight === 2 && (
                                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                  {lang === 'tr' ? 'Önemli' : 'Wichtig'}
+                                  {t('simulation.important')}
                                 </Badge>
                               )}
                               <span className={`text-xs font-bold ml-auto ${getScoreColor(result.score)}`}>
@@ -309,7 +309,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="h-5 w-5 text-primary" />
-                  {lang === 'tr' ? 'Dokümantasyon Değerlendirmesi' : 'Dokumentations-Bewertung'}
+                  {t('evaluation.docEvaluation')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -317,7 +317,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">
-                        {lang === 'tr' ? 'Dokümantasyon Puanı' : 'Dokumentations-Score'}
+                        {t('evaluation.docScore')}
                       </span>
                       <span className={`text-sm font-bold ${getScoreColor(docScore)}`}>{docScore}/10</span>
                     </div>
@@ -350,7 +350,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
                 {hasDoc && (
                   <details className="mt-2">
                     <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground">
-                      {lang === 'tr' ? 'Gönderilen dokümantasyonu göster' : 'Eingereichte Dokumentation anzeigen'}
+                      {t('evaluation.showSubmittedDoc')}
                     </summary>
                     <div className="mt-2 p-3 bg-muted rounded-lg">
                       <pre className="text-xs whitespace-pre-wrap">{data?.documentation}</pre>
@@ -391,7 +391,7 @@ export function EvaluationClient({ simId }: { simId: string }) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  {lang === 'tr' ? 'Konuşma Geçmişi' : 'Gesprächsverlauf'}
+                  {t('evaluation.conversationHistory')}
                 </CardTitle>
               </CardHeader>
               <CardContent>

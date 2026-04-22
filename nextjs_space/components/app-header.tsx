@@ -31,7 +31,7 @@ export function AppHeader() {
               <Button variant="ghost" size="sm" asChild>
                 <Link href="/coaching" className="gap-2">
                   <MessageCircle className="h-4 w-4" />
-                  <span className="hidden sm:inline">Coaching</span>
+                  <span className="hidden sm:inline">{t('common.coaching')}</span>
                 </Link>
               </Button>
               <Button variant="ghost" size="sm" asChild>

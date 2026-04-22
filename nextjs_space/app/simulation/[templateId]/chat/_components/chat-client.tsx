@@ -49,8 +49,8 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Speech Recognition
-  const speechLang = lang === 'tr' ? 'tr-TR' : 'de-DE';
+  // Speech Recognition - always use German for medical exam simulation
+  const speechLang = 'de-DE';
   const {
     isListening,
     isSupported: isSpeechSupported,
@@ -338,7 +338,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
               <div className="flex items-center gap-2 min-w-0">
                 <FileText className="h-4 w-4 text-primary shrink-0" />
                 <span className="text-sm font-semibold text-primary truncate">
-                  {lang === 'tr' ? 'Görev Tanımı' : 'Aufgabenstellung'}
+                  {t('simulation.taskTitle')}
                 </span>
                 {!descriptionExpanded && (
                   <span className="text-xs text-muted-foreground truncate hidden sm:inline">
@@ -366,7 +366,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                       <details className="mt-2">
                         <summary className="text-xs font-medium text-muted-foreground cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors">
                           <ClipboardList className="h-3 w-3" />
-                          {lang === 'tr' ? 'Kontrol Listesi' : 'Checkliste'} ({checklistItems.length} {lang === 'tr' ? 'madde' : 'Punkte'})
+                          {t('simulation.checklistLabel')} ({checklistItems.length} {t('simulation.checklistItems')})
                         </summary>
                         <ul className="mt-2 space-y-1">
                           {checklistItems.map((item) => (
@@ -378,7 +378,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                                 {lang === 'tr' ? item.textTr : item.textDe}
                                 {item.weight >= 3 && (
                                   <Badge variant="destructive" className="ml-1 text-[10px] px-1 py-0">
-                                    {lang === 'tr' ? 'Kritik' : 'Kritisch'}
+                                    {t('simulation.critical')}
                                   </Badge>
                                 )}
                               </span>
@@ -386,9 +386,9 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                           ))}
                         </ul>
                         <p className="mt-1.5 text-[10px] text-muted-foreground">
-                          <span className="inline-block h-2 w-2 rounded-full bg-red-500 mr-1" />{lang === 'tr' ? 'Kritik' : 'Kritisch'}
-                          <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 mx-1 ml-2" />{lang === 'tr' ? 'Önemli' : 'Wichtig'}
-                          <span className="inline-block h-2 w-2 rounded-full bg-green-500 mx-1 ml-2" />{lang === 'tr' ? 'Normal' : 'Normal'}
+                          <span className="inline-block h-2 w-2 rounded-full bg-red-500 mr-1" />{t('simulation.critical')}
+                          <span className="inline-block h-2 w-2 rounded-full bg-yellow-500 mx-1 ml-2" />{t('simulation.important')}
+                          <span className="inline-block h-2 w-2 rounded-full bg-green-500 mx-1 ml-2" />{t('simulation.normal')}
                         </p>
                       </details>
                     )}
@@ -418,12 +418,16 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
               {t('simulation.turnsRemaining')}: {remaining}
             </Badge>
             <Badge variant="outline" className="text-xs">
-              {languageMode === 'bilingual' ? t('simulation.bilingual') : t('simulation.germanOnly')}
+              {languageMode === 'bilingual'
+                ? t('simulation.bilingual')
+                : languageMode === 'bilingual_en'
+                  ? t('simulation.bilingualEn')
+                  : t('simulation.germanOnly')}
             </Badge>
             {requiresDoc && (
               <Badge variant="outline" className="text-xs gap-1">
                 <FileText className="h-3 w-3" />
-                {lang === 'tr' ? 'Dökümantasyon gerekli' : 'Dokumentation erforderlich'}
+                {t('simulation.docRequired')}
               </Badge>
             )}
           </div>
@@ -439,10 +443,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
           <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md px-3 py-2 flex items-center gap-2 text-red-700 dark:text-red-400 text-xs">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="font-medium">
-              {lang === 'tr'
-                ? `Son ${Math.ceil(timeRemaining / 60)} dakika! Lütfen cevabınızı tamamlayın.`
-                : `Noch ${Math.ceil(timeRemaining / 60)} Minute${Math.ceil(timeRemaining / 60) !== 1 ? 'n' : ''}! Bitte schließen Sie Ihre Antwort ab.`
-              }
+              {t('simulation.minutesLeft', { count: Math.ceil(timeRemaining / 60) })}
             </span>
           </div>
         )}
@@ -450,7 +451,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
           <div className="bg-red-100 dark:bg-red-950/50 border border-red-300 dark:border-red-700 rounded-md px-3 py-2 flex items-center gap-2 text-red-800 dark:text-red-300 text-xs">
             <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="font-medium">
-              {lang === 'tr' ? 'Süre doldu!' : 'Zeit abgelaufen!'}
+              {t('simulation.timeUp')}
             </span>
           </div>
         )}
@@ -460,7 +461,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
           {(messages ?? [])?.length === 0 && (
             <div className="text-center text-muted-foreground py-12">
               <Stethoscope className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">{lang === 'tr' ? 'Hasta ile konuşmaya başlayın...' : 'Beginnen Sie das Gespräch...'}</p>
+              <p className="text-sm">{t('simulation.startConversation')}</p>
             </div>
           )}
           <AnimatePresence mode="popLayout">
@@ -512,24 +513,20 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <FileText className="h-5 w-5 text-primary" />
-                  {lang === 'tr' ? 'Hemşirelik Dokümantasyonu' : 'Pflegedokumentation'}
+                  {t('simulation.nursingDoc')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                   <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
                   <p className="text-sm text-amber-800 dark:text-amber-300">
-                    {lang === 'tr'
-                      ? 'Lütfen bu hasta görüşmesinin hemşirelik dokümantasyonunu yazın. Gözlemlerinizi, bulguları, alınan tedbirleri ve takip planını ekleyin.'
-                      : 'Erstellen Sie nun die Pflegedokumentation zu diesem Patientenkontakt. Beschreiben Sie Ihre Beobachtungen, Befunde, durchgeführte Maßnahmen und den weiteren Pflegeplan.'}
+                    {t('simulation.nursingDocInstr')}
                   </p>
                 </div>
                 <Textarea
                   value={documentation}
                   onChange={(e: any) => setDocumentation(e?.target?.value ?? '')}
-                  placeholder={lang === 'tr'
-                    ? 'Hemşirelik dokümantasyonunuzu buraya yazın...\n\nÖrnek: Hasta bilgileri, gözlemler, bulgular, alınan tedbirler, takip planı...'
-                    : 'Ihre Pflegedokumentation hier eingeben...\n\nBeispiel: Patienteninformationen, Beobachtungen, Befunde, Maßnahmen, weiterer Plan...'}
+                  placeholder={t('simulation.nursingDocPlaceholder')}
                   className="min-h-[200px] resize-y"
                   rows={10}
                 />
@@ -540,7 +537,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                     className="flex-1 gap-2"
                   >
                     {docSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                    {lang === 'tr' ? 'Gönder ve Değerlendir' : 'Abgeben & Bewerten'}
+                    {t('simulation.submitAndEvaluate')}
                   </Button>
                   <Button
                     variant="outline"
@@ -548,7 +545,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                     disabled={docSaving}
                     className="gap-2"
                   >
-                    {lang === 'tr' ? 'Atla' : 'Überspringen'}
+                    {t('simulation.skip')}
                   </Button>
                 </div>
               </CardContent>
@@ -588,7 +585,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                   <span className="relative inline-flex h-3 w-3 rounded-full bg-red-500" />
                 </div>
                 <span className="text-sm text-red-700 dark:text-red-300 font-medium">
-                  {lang === 'tr' ? 'Dinleniyor...' : 'Aufnahme läuft...'}
+                  {t('simulation.listening')}
                 </span>
                 {interimTranscript && (
                   <span className="text-sm text-muted-foreground italic ml-2 truncate flex-1">
@@ -604,7 +601,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                 onChange={(e: any) => setInput(e?.target?.value ?? '')}
                 onKeyDown={handleKeyDown}
                 placeholder={isSpeechSupported
-                  ? (lang === 'tr' ? 'Yazın veya mikrofona tıklayın...' : 'Tippen oder Mikrofon klicken...')
+                  ? t('simulation.typeOrMic')
                   : t('simulation.typeMessage')
                 }
                 className="min-h-[48px] max-h-[120px] resize-none"
@@ -622,8 +619,8 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
                   variant={isListening ? 'destructive' : 'outline'}
                   className={`h-12 w-12 shrink-0 transition-all ${isListening ? 'animate-pulse' : ''}`}
                   title={isListening
-                    ? (lang === 'tr' ? 'Kaydı durdur' : 'Aufnahme stoppen')
-                    : (lang === 'tr' ? 'Sesle giriş' : 'Spracheingabe')
+                    ? t('simulation.stopRecording')
+                    : t('simulation.voiceInput')
                   }
                 >
                   {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -644,9 +641,7 @@ export function ChatClient({ templateId, simId }: { templateId: string; simId: s
             {isSpeechSupported && !isListening && (
               <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                 <Mic className="h-3 w-3" />
-                {lang === 'tr'
-                  ? 'Mikrofon düğmesine tıklayarak sesle yanıt verebilirsiniz'
-                  : 'Klicken Sie auf das Mikrofon, um mündlich zu antworten'}
+                {t('simulation.speakHint')}
               </p>
             )}
           </div>

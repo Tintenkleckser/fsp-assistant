@@ -11,11 +11,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userMessage, previousMessages } = body ?? {};
+    const { userMessage, previousMessages, responseLanguage } = body ?? {};
 
     if (!userMessage) {
       return new Response(JSON.stringify({ error: 'Message required' }), { status: 400 });
     }
+
+    // Determine response language: default 'de'
+    const respLang: 'de' | 'tr' | 'en' = responseLanguage === 'tr' ? 'tr' : responseLanguage === 'en' ? 'en' : 'de';
 
     // Load ALL user progress data for context
     const [progressEntries, completedSims] = await Promise.all([
@@ -109,6 +112,14 @@ ${weakPoints.slice(0, 10).join('\n') || 'Keine spezifischen Schwachstellen erkan
 Verlauf (letzte Sitzungen):
 ${progressSummary || 'Kein Verlauf vorhanden.'}`;
 
+    // Language-specific rules
+    const languageInstruction =
+      respLang === 'tr'
+        ? '- Cevapları her zaman Türkçe ver, ancak tıbbi terimleri Almancada bırak (örn. "Anamnese", "Dokumentation", "Übergabe").'
+        : respLang === 'en'
+          ? '- Always respond in English, but keep German medical/exam terms in German (e.g. "Anamnese", "Dokumentation", "Übergabe").'
+          : '- Antworte immer auf Deutsch.';
+
     const systemPrompt = `Du bist ein erfahrener FSP-Coach f\u00fcr ausl\u00e4ndische \u00c4rzte in Deutschland. Deine Aufgabe ist es, dem Kandidaten ehrlich und ungeschminkt zu sagen, wo er steht.
 
 Du hast Zugriff auf die kompletten Leistungsdaten des Nutzers (siehe unten). Nutze diese Daten aktiv in deinen Antworten.
@@ -120,7 +131,7 @@ DEINE REGELN:
 - Wenn ein Pr\u00fcfungsteil nie ge\u00fcbt wurde, weise darauf hin
 - Gib konkrete, umsetzbare Vorschl\u00e4ge
 - Sprich den Nutzer als Kandidat/in an
-- Antworte immer auf Deutsch
+${languageInstruction}
 - Halte dich kurz und pr\u00e4gnant (nicht mehr als 5-8 S\u00e4tze pro Antwort)
 - Wenn der Nutzer keine \u00dcbungen gemacht hat, sage das direkt und motiviere zum Anfangen
 - Beziehe dich auf die drei FSP-Teile: Anamnese, Dokumentation, \u00dcbergabe

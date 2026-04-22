@@ -14,7 +14,7 @@ interface Message {
 }
 
 export function CoachingClient() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const router = useRouter();
   const lang = i18n?.language ?? 'de';
 
@@ -48,6 +48,7 @@ export function CoachingClient() {
         body: JSON.stringify({
           userMessage: text,
           previousMessages: messages, // send history without the current user message
+          responseLanguage: lang,
         }),
       });
 
@@ -55,7 +56,7 @@ export function CoachingClient() {
         const err = await res.json().catch(() => ({ error: 'Fehler' }));
         setMessages(prev => {
           const copy = [...prev];
-          copy[copy.length - 1] = { role: 'assistant', content: err?.error || 'Ein Fehler ist aufgetreten.' };
+          copy[copy.length - 1] = { role: 'assistant', content: err?.error || t('simulation.anErrorOccurred') };
           return copy;
         });
         setStreaming(false);
@@ -84,7 +85,7 @@ export function CoachingClient() {
     } catch (e: any) {
       setMessages(prev => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: 'assistant', content: 'Netzwerkfehler. Bitte versuchen Sie es erneut.' };
+        copy[copy.length - 1] = { role: 'assistant', content: t('simulation.connectionError') };
         return copy;
       });
     } finally {
@@ -107,7 +108,7 @@ export function CoachingClient() {
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mb-4">
           <Button variant="ghost" size="sm" className="mb-3 gap-2" onClick={() => router.push('/dashboard')}>
             <ArrowLeft className="h-4 w-4" />
-            {lang === 'tr' ? 'Kontrol Paneline D\u00f6n' : 'Zur\u00fcck zum Dashboard'}
+            {t('coaching.backToDashboard')}
           </Button>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -115,12 +116,10 @@ export function CoachingClient() {
             </div>
             <div>
               <h1 className="font-display text-2xl font-bold tracking-tight">
-                {lang === 'tr' ? 'FSP-Ko\u00e7luk' : 'FSP-Coaching'}
+                {t('coaching.title')}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {lang === 'tr'
-                  ? 'Yapay zeka ko\u00e7unuz \u2013 performans\u0131n\u0131z hakk\u0131nda d\u00fcr\u00fcst geri bildirim'
-                  : 'Ihr KI-Coach \u2013 ehrliches Feedback zu Ihrem Leistungsstand'}
+                {t('coaching.subtitle')}
               </p>
             </div>
           </div>
@@ -137,15 +136,13 @@ export function CoachingClient() {
                     <MessageCircle className="h-8 w-8 text-primary" />
                   </div>
                   <p className="text-muted-foreground max-w-sm">
-                    {lang === 'tr'
-                      ? 'Ko\u00e7unuza bir soru sorun. Performans\u0131n\u0131z\u0131 analiz edecek ve d\u00fcr\u00fcst geri bildirim verecektir.'
-                      : 'Fragen Sie Ihren Coach. Er analysiert Ihre Leistungsdaten und gibt Ihnen ehrliches Feedback.'}
+                    {t('coaching.empty')}
                   </p>
                   <div className="flex flex-wrap justify-center gap-2 mt-4">
                     {[
-                      lang === 'tr' ? 'Nas\u0131l duruyorum?' : 'Wie stehe ich da?',
-                      lang === 'tr' ? 'Zay\u0131f noktalar\u0131m neler?' : 'Wo sind meine L\u00fccken?',
-                      lang === 'tr' ? 'Ne \u00e7al\u0131\u015fmal\u0131y\u0131m?' : 'Was sollte ich als N\u00e4chstes \u00fcben?',
+                      t('coaching.suggestion1'),
+                      t('coaching.suggestion2'),
+                      t('coaching.suggestion3'),
                     ].map((suggestion) => (
                       <Button
                         key={suggestion}
@@ -184,7 +181,7 @@ export function CoachingClient() {
                     {msg.content || (
                       <span className="flex items-center gap-2 text-muted-foreground">
                         <Loader2 className="h-3 w-3 animate-spin" />
-                        {lang === 'tr' ? 'D\u00fc\u015f\u00fcn\u00fcyor...' : 'Denkt nach...'}
+                        {t('coaching.thinking')}
                       </span>
                     )}
                   </div>
@@ -205,7 +202,7 @@ export function CoachingClient() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={lang === 'tr' ? 'Ko\u00e7unuza bir soru sorun...' : 'Fragen Sie Ihren Coach...'}
+                  placeholder={t('coaching.placeholder')}
                   className="flex-1 resize-none rounded-xl border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 min-h-[44px] max-h-[120px]"
                   rows={1}
                   disabled={streaming}

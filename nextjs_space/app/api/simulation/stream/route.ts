@@ -34,11 +34,13 @@ export async function POST(request: NextRequest) {
       return new Response(JSON.stringify({ error: 'Template not found' }), { status: 404 });
     }
 
-    const isBilingual = languageMode === 'bilingual';
+    const isBilingualTr = languageMode === 'bilingual';
+    const isBilingualEn = languageMode === 'bilingual_en';
+    const isBilingual = isBilingualTr || isBilingualEn;
 
-    // Retrieve glossary from DB for bilingual mode
+    // Retrieve glossary from DB for Turkish bilingual mode
     let glossaryContext = '';
-    if (isBilingual) {
+    if (isBilingualTr) {
       try {
         const glossaryTerms = await prisma.glossaryTerm.findMany({
           select: { termDe: true, termTr: true },
@@ -63,15 +65,23 @@ export async function POST(request: NextRequest) {
     if (handbookContext) {
       systemPrompt += `\n${handbookContext}`;
     }
-    systemPrompt += `\n\nSPRACHMODUS: ${isBilingual ? 'BILINGUAL' : 'GERMAN_ONLY'}\n`;
-    if (isBilingual) {
+    const modeLabel = isBilingualTr ? 'BILINGUAL_TR' : isBilingualEn ? 'BILINGUAL_EN' : 'GERMAN_ONLY';
+    systemPrompt += `\n\nSPRACHMODUS: ${modeLabel}\n`;
+    if (isBilingualTr) {
       systemPrompt += `
 - Führe das Gespräch auf Deutsch.
 - Wenn der Kandidat etwas nicht versteht, erkläre es zusätzlich auf Türkisch in eckigen Klammern [TR: ...].
 - Gib Hinweise zweisprachig: Erst Deutsch, dann [TR: türkische Übersetzung].
 ${glossaryContext}`;
+    } else if (isBilingualEn) {
+      systemPrompt += `
+- Führe das Gespräch auf Deutsch.
+- Wenn du medizinische Fachbegriffe oder schwierige Wörter verwendest, ergänze unmittelbar dahinter die englische Übersetzung in eckigen Klammern: [EN: ...].
+- Gib Hinweise zweisprachig: Erst Deutsch, dann [EN: englische Übersetzung oder Erklärung].
+- Englisch dient nur als Verständnishilfe – das Hauptgespräch bleibt Deutsch.
+`;
     } else {
-      systemPrompt += `\n- Führe das Gespräch ausschließlich auf Deutsch.\n- Antworte niemals auf Türkisch.\n`;
+      systemPrompt += `\n- Führe das Gespräch ausschließlich auf Deutsch.\n- Antworte niemals auf Türkisch oder Englisch.\n`;
     }
 
     if (isLastTurn) {

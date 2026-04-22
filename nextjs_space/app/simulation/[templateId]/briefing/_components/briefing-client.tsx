@@ -6,7 +6,6 @@ import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Play, BookOpen, Languages, AlertTriangle } from 'lucide-react';
@@ -22,14 +21,25 @@ interface Template {
   maxTurns: number;
 }
 
+type SupportLang = 'none' | 'tr' | 'en';
+
 export function BriefingClient({ templateId }: { templateId: string }) {
   const { t, i18n } = useTranslation();
   const router = useRouter();
   const [template, setTemplate] = useState<Template | null>(null);
-  const [bilingual, setBilingual] = useState(true);
+  const [supportLang, setSupportLang] = useState<SupportLang>('tr');
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
   const lang = i18n?.language ?? 'de';
+
+  // Default support language based on UI language
+  useEffect(() => {
+    if (lang === 'en') setSupportLang('en');
+    else if (lang === 'tr') setSupportLang('tr');
+    else setSupportLang('tr');
+    // Only set on initial mount or lang change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   useEffect(() => {
     const fetchTemplate = async () => {
@@ -53,34 +63,39 @@ export function BriefingClient({ templateId }: { templateId: string }) {
     setStarting(true);
     setError(null);
     try {
+      // Map support language to legacy languageMode for backward compatibility
+      let languageMode = 'german_only';
+      if (supportLang === 'tr') languageMode = 'bilingual';
+      else if (supportLang === 'en') languageMode = 'bilingual_en';
+
       const res = await fetch('/api/simulations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           templateId,
-          languageMode: bilingual ? 'bilingual' : 'german_only',
+          languageMode,
         }),
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         console.error('API error:', res.status, errData);
         if (res.status === 401) {
-          setError(lang === 'tr' ? 'Oturumunuz sona erdi. Lütfen tekrar giriş yapın.' : 'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.');
+          setError(t('simulation.sessionExpired'));
           setTimeout(() => router.push('/login'), 2000);
           return;
         }
-        setError(errData?.error || (lang === 'tr' ? 'Bir hata oluştu.' : 'Ein Fehler ist aufgetreten.'));
+        setError(errData?.error || t('simulation.anErrorOccurred'));
         return;
       }
       const sim = await res.json();
       if (sim?.id) {
         router.push(`/simulation/${templateId}/chat?simId=${sim.id}`);
       } else {
-        setError(lang === 'tr' ? 'Alıştırma oluşturulamadı.' : 'Übung konnte nicht erstellt werden.');
+        setError(t('simulation.exerciseNotCreated'));
       }
     } catch (e: any) {
       console.error('Start simulation error:', e);
-      setError(lang === 'tr' ? 'Bağlantı hatası.' : 'Verbindungsfehler.');
+      setError(t('simulation.connectionError'));
     } finally {
       setStarting(false);
     }
@@ -109,6 +124,12 @@ export function BriefingClient({ templateId }: { templateId: string }) {
       </div>
     );
   }
+
+  const supportOptions: Array<{ code: SupportLang; labelKey: string }> = [
+    { code: 'none', labelKey: 'simulation.supportLangNone' },
+    { code: 'tr', labelKey: 'simulation.supportLangTurkish' },
+    { code: 'en', labelKey: 'simulation.supportLangEnglish' },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -150,17 +171,32 @@ export function BriefingClient({ templateId }: { templateId: string }) {
 
           <Card className="mb-6">
             <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Languages className="h-5 w-5 text-primary" />
-                  <div>
-                    <Label className="font-medium">{t('simulation.languageMode')}</Label>
-                    <p className="text-xs text-muted-foreground">
-                      {bilingual ? t('simulation.bilingual') : t('simulation.germanOnly')}
-                    </p>
-                  </div>
+              <div className="flex items-center gap-3 mb-4">
+                <Languages className="h-5 w-5 text-primary" />
+                <div>
+                  <Label className="font-medium">{t('simulation.supportLanguageLabel')}</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {supportLang === 'none'
+                      ? t('simulation.germanOnly')
+                      : supportLang === 'tr'
+                      ? t('simulation.bilingual')
+                      : t('simulation.bilingualEn')}
+                  </p>
                 </div>
-                <Switch checked={bilingual} onCheckedChange={setBilingual} />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {supportOptions.map((opt) => (
+                  <Button
+                    key={opt.code}
+                    type="button"
+                    variant={supportLang === opt.code ? 'default' : 'outline'}
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setSupportLang(opt.code)}
+                  >
+                    {t(opt.labelKey)}
+                  </Button>
+                ))}
               </div>
             </CardContent>
           </Card>

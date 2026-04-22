@@ -146,10 +146,7 @@ export function GlossaryClient() {
                                 isSpeaking ? 'text-primary-foreground' : 'text-muted-foreground hover:text-primary'
                               }`}
                               onClick={() => speakTerm(term)}
-                              title={isSpeaking
-                                ? (lang === 'tr' ? 'Durdur' : 'Stoppen')
-                                : (lang === 'tr' ? 'Terimi sesli oku' : 'Begriff vorlesen')
-                              }
+                              title={isSpeaking ? t('glossary.stop') : t('glossary.readAloud')}
                             >
                               {isSpeaking
                                 ? <Square className="h-3.5 w-3.5" />
@@ -179,9 +176,7 @@ export function GlossaryClient() {
           {ttsSupported && (
             <p className="text-xs text-muted-foreground mt-6 flex items-center gap-1.5">
               <Volume2 className="h-3.5 w-3.5" />
-              {lang === 'tr'
-                ? 'Hoparlör simgesine tıklayarak terimi Almanca dinleyebilirsiniz.'
-                : 'Klicken Sie auf das Lautsprecher-Symbol, um den deutschen Begriff vorgelesen zu bekommen.'}
+              {t('glossary.speakerHint')}
             </p>
           )}
         </motion.div>

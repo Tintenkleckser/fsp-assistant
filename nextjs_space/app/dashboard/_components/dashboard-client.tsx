@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Play, Trophy, Clock, TrendingUp, TrendingDown, ChevronRight, BarChart3, Users, Stethoscope, Sparkles, Filter, X, ClipboardList, Target, BookOpen, ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DIFFICULTY_LEVELS, SIMULATION_TYPES } from '@/lib/topic-categories';
+import { DIFFICULTY_LEVELS, SIMULATION_TYPES, pickLang } from '@/lib/topic-categories';
 
 interface SimTemplate {
   id: string;
@@ -231,7 +231,7 @@ export function DashboardClient() {
                           <BookOpen className="h-5 w-5 text-indigo-600" />
                         </div>
                         <div>
-                          <p className="text-sm text-muted-foreground">{lang === 'tr' ? 'Toplam Oturum' : 'Übungen gesamt'}</p>
+                          <p className="text-sm text-muted-foreground">{t('dashboard.totalSessions')}</p>
                           <p className="text-2xl font-bold">{totalSessions}</p>
                         </div>
                       </div>
@@ -262,7 +262,7 @@ export function DashboardClient() {
                           </span>
                         </div>
                         <span className="text-[10px] text-muted-foreground w-16 text-right shrink-0">
-                          {entry.sessionDate ? new Date(entry.sessionDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'de-DE', { day: '2-digit', month: '2-digit' }) : ''}
+                          {entry.sessionDate ? new Date(entry.sessionDate).toLocaleDateString(lang === 'tr' ? 'tr-TR' : lang === 'en' ? 'en-GB' : 'de-DE', { day: '2-digit', month: '2-digit' }) : ''}
                         </span>
                       </div>
                     );
@@ -279,7 +279,7 @@ export function DashboardClient() {
             <h2 className="font-display text-xl font-bold tracking-tight">{t('dashboard.availableScenarios')}</h2>
             <Button className="gap-2" onClick={() => router.push('/simulation/new')}>
               <Sparkles className="h-4 w-4" />
-              {lang === 'tr' ? 'Yeni Simülasyon Oluştur' : 'Neue Simulation erstellen'}
+              {t('dashboard.newSimulation')}
             </Button>
           </div>
 
@@ -287,7 +287,7 @@ export function DashboardClient() {
           <div className="flex flex-wrap gap-2 mb-4">
             <div className="flex items-center gap-1 mr-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">{lang === 'tr' ? 'Filtre:' : 'Filter:'}</span>
+              <span className="text-sm text-muted-foreground">{t('dashboard.filter')}</span>
             </div>
             {DIFFICULTY_LEVELS.map(d => (
               <Badge
@@ -296,24 +296,24 @@ export function DashboardClient() {
                 className="cursor-pointer transition-colors"
                 onClick={() => setFilterDifficulty(filterDifficulty === d.id ? null : d.id)}
               >
-                {lang === 'tr' ? d.labelTr : d.labelDe}
+                {pickLang(lang, d.labelDe, d.labelTr, d.labelEn)}
               </Badge>
             ))}
             <span className="text-muted-foreground">|</span>
-            {SIMULATION_TYPES.map(st => ({ id: st.id, de: st.shortDe, tr: st.shortTr })).map(tp => (
+            {SIMULATION_TYPES.map(st => ({ id: st.id, de: st.shortDe, tr: st.shortTr, en: st.shortEn })).map(tp => (
               <Badge
                 key={tp.id}
                 variant={filterType === tp.id ? 'default' : 'outline'}
                 className="cursor-pointer transition-colors"
                 onClick={() => setFilterType(filterType === tp.id ? null : tp.id)}
               >
-                {lang === 'tr' ? tp.tr : tp.de}
+                {pickLang(lang, tp.de, tp.tr, tp.en)}
               </Badge>
             ))}
             {(filterDifficulty || filterType) && (
               <Button variant="ghost" size="sm" className="h-6 px-2 text-xs gap-1" onClick={() => { setFilterDifficulty(null); setFilterType(null); }}>
                 <X className="h-3 w-3" />
-                {lang === 'tr' ? 'Sıfırla' : 'Zurücksetzen'}
+                {t('dashboard.reset')}
               </Button>
             )}
           </div>
@@ -326,15 +326,15 @@ export function DashboardClient() {
                 return true;
               })
               .map((tmpl: SimTemplate, idx: number) => {
-              const typeConfig: Record<string, { icon: any; label: string; labelTr: string; color: string }> = {
-                patient_conversation: { icon: Users, label: 'Teil 1: Anamnese', labelTr: 'Bölüm 1: Öykü Alma', color: 'text-green-600 bg-green-500/10' },
-                documentation: { icon: ClipboardList, label: 'Teil 2: Dokumentation', labelTr: 'Bölüm 2: Dokümantasyon', color: 'text-teal-600 bg-teal-500/10' },
-                doctor_conversation: { icon: Stethoscope, label: 'Teil 3: Übergabe', labelTr: 'Bölüm 3: Devir Teslim', color: 'text-orange-600 bg-orange-500/10' },
+              const typeConfig: Record<string, { icon: any; label: string; labelTr: string; labelEn: string; color: string }> = {
+                patient_conversation: { icon: Users, label: 'Teil 1: Anamnese', labelTr: 'Bölüm 1: Öykü Alma', labelEn: 'Part 1: History taking', color: 'text-green-600 bg-green-500/10' },
+                documentation: { icon: ClipboardList, label: 'Teil 2: Dokumentation', labelTr: 'Bölüm 2: Dokümantasyon', labelEn: 'Part 2: Documentation', color: 'text-teal-600 bg-teal-500/10' },
+                doctor_conversation: { icon: Stethoscope, label: 'Teil 3: Übergabe', labelTr: 'Bölüm 3: Devir Teslim', labelEn: 'Part 3: Handover', color: 'text-orange-600 bg-orange-500/10' },
               };
-              const difficultyConfig: Record<string, { label: string; labelTr: string; variant: 'default' | 'secondary' | 'destructive' }> = {
-                beginner: { label: 'Einsteiger', labelTr: 'Başlangıç', variant: 'secondary' },
-                intermediate: { label: 'Mittel', labelTr: 'Orta', variant: 'default' },
-                advanced: { label: 'Fortgeschritten', labelTr: 'İleri', variant: 'destructive' },
+              const difficultyConfig: Record<string, { label: string; labelTr: string; labelEn: string; variant: 'default' | 'secondary' | 'destructive' }> = {
+                beginner: { label: 'Einsteiger', labelTr: 'Başlangıç', labelEn: 'Beginner', variant: 'secondary' },
+                intermediate: { label: 'Mittel', labelTr: 'Orta', labelEn: 'Intermediate', variant: 'default' },
+                advanced: { label: 'Fortgeschritten', labelTr: 'İleri', labelEn: 'Advanced', variant: 'destructive' },
               };
               const tc = typeConfig[tmpl?.type] ?? typeConfig.patient_conversation;
               const dc = difficultyConfig[tmpl?.difficulty] ?? difficultyConfig.intermediate;
@@ -354,14 +354,14 @@ export function DashboardClient() {
                           <TypeIcon className="h-5 w-5" />
                         </div>
                         <Badge variant={dc.variant} className="text-xs shrink-0">
-                          {lang === 'tr' ? dc.labelTr : dc.label}
+                          {pickLang(lang, dc.label, dc.labelTr, dc.labelEn)}
                         </Badge>
                       </div>
                       <CardTitle className="text-lg leading-tight mt-2 group-hover:text-primary transition-colors">
                         {lang === 'tr' ? tmpl?.titleTr : tmpl?.titleDe}
                       </CardTitle>
                       <span className="text-xs text-muted-foreground font-medium">
-                        {lang === 'tr' ? tc.labelTr : tc.label} • {tmpl?.maxTurns ?? 8} Turns
+                        {pickLang(lang, tc.label, tc.labelTr, tc.labelEn)} • {tmpl?.maxTurns ?? 8} Turns
                       </span>
                     </CardHeader>
                     <CardContent className="flex-1 flex flex-col justify-between pt-0">
@@ -385,10 +385,10 @@ export function DashboardClient() {
               <Card className="col-span-full">
                 <CardContent className="py-8 text-center text-muted-foreground">
                   <Filter className="h-8 w-8 mx-auto mb-2 opacity-40" />
-                  <p className="mb-3">{lang === 'tr' ? 'Bu filtreyle eşleşen senaryo yok.' : 'Keine Szenarien für diesen Filter gefunden.'}</p>
+                  <p className="mb-3">{t('dashboard.noMatchingScenarios')}</p>
                   <Button variant="outline" size="sm" className="gap-2" onClick={() => router.push('/simulation/new')}>
                     <Sparkles className="h-4 w-4" />
-                    {lang === 'tr' ? 'Yeni oluştur' : 'Neu erstellen'}
+                    {t('dashboard.newSimulationShort')}
                   </Button>
                 </CardContent>
               </Card>
@@ -428,7 +428,7 @@ export function DashboardClient() {
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {sim?.startedAt ? new Date(sim.startedAt).toLocaleDateString(lang === 'tr' ? 'tr-TR' : 'de-DE') : ''}
+                          {sim?.startedAt ? new Date(sim.startedAt).toLocaleDateString(lang === 'tr' ? 'tr-TR' : lang === 'en' ? 'en-GB' : 'de-DE') : ''}
                           {sim?.evaluation?.scores ? ` \u2022 Ø ${(Object.values(sim.evaluation.scores ?? {}).reduce((a: any, b: any) => (Number(a)||0) + (Number(b)||0), 0) as number / (Object.keys(sim.evaluation.scores ?? {})?.length || 1))?.toFixed?.(1)}/10` : ''}
                         </p>
                       </div>
