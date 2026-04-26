@@ -2,13 +2,14 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 import { AppHeader } from '@/components/app-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Trophy, ArrowLeft, RotateCcw, MessageSquare, Award, TrendingUp, CheckCircle2, XCircle, ClipboardList, FileText } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Trophy, ArrowLeft, RotateCcw, MessageSquare, Award, TrendingUp, CheckCircle2, XCircle, ClipboardList, FileText, Sparkles, Loader2, RefreshCw } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChecklistResult {
   id: string;
@@ -31,6 +32,8 @@ interface EvalData {
     docFeedbackDe: string | null;
     docFeedbackTr: string | null;
     docScore: number | null;
+    coachingFeedbackDe?: string | null;
+    coachingFeedbackTr?: string | null;
   } | null;
   documentation: string | null;
   interactions: Array<{ userInput: string; aiResponse: string; turnNumber: number }>;
@@ -42,6 +45,10 @@ export function EvaluationClient({ simId }: { simId: string }) {
   const lang = i18n?.language ?? 'de';
   const [data, setData] = useState<EvalData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [coachingFeedbackDe, setCoachingFeedbackDe] = useState<string | null>(null);
+  const [coachingFeedbackTr, setCoachingFeedbackTr] = useState<string | null>(null);
+  const [coachingLoading, setCoachingLoading] = useState(false);
+  const [coachingError, setCoachingError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -49,6 +56,9 @@ export function EvaluationClient({ simId }: { simId: string }) {
         const res = await fetch(`/api/simulations/${simId}`);
         const d = await res?.json?.();
         setData(d ?? null);
+        // Pre-fill coaching feedback if it was already generated previously
+        if (d?.evaluation?.coachingFeedbackDe) setCoachingFeedbackDe(d.evaluation.coachingFeedbackDe);
+        if (d?.evaluation?.coachingFeedbackTr) setCoachingFeedbackTr(d.evaluation.coachingFeedbackTr);
       } catch (e: any) {
         console.error('Evaluation fetch error:', e);
       } finally {
@@ -57,6 +67,31 @@ export function EvaluationClient({ simId }: { simId: string }) {
     };
     if (simId) fetchData();
   }, [simId]);
+
+  const handleRequestCoachingFeedback = async (force: boolean = false) => {
+    setCoachingLoading(true);
+    setCoachingError(null);
+    try {
+      const res = await fetch('/api/simulation/coaching-feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ simId, force }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setCoachingError(errData?.error || t('evaluation.coachingFeedbackError'));
+        return;
+      }
+      const result = await res.json();
+      setCoachingFeedbackDe(result?.coachingFeedbackDe ?? null);
+      setCoachingFeedbackTr(result?.coachingFeedbackTr ?? null);
+    } catch (e: any) {
+      console.error('Coaching feedback error:', e);
+      setCoachingError(t('evaluation.coachingFeedbackError'));
+    } finally {
+      setCoachingLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -91,24 +126,29 @@ export function EvaluationClient({ simId }: { simId: string }) {
   const hasDoc = data?.documentation != null && data.documentation.length > 0;
   const simType = data?.template?.type || 'patient_conversation';
 
-  // Calculate overall score - prefer scores object, use checklist as supplement
-  let avgScore = 0;
-  if (scoreKeys.length > 0) {
-    const total = scoreKeys.reduce((sum: number, key: string) => sum + (Number(scores[key]) || 0), 0);
-    avgScore = total / scoreKeys.length;
-  } else if (hasChecklist) {
-    // Fallback: calculate from checklist scores
-    const totalWeight = checklistResults.reduce((sum: number, r: ChecklistResult) => {
-      const matchingItem = checklist.find((c: any) => String(c.id) === String(r.id));
-      return sum + (Number(matchingItem?.weight) || 1);
-    }, 0);
-    const weightedScore = checklistResults.reduce((sum: number, r: ChecklistResult) => {
+  // Calculate weighted score from checklist (PRIMARY metric)
+  let weightedAchievedPoints = 0; // sum(score * weight) e.g. 7*3 = 21
+  let weightedMaxPoints = 0;       // sum(weight * 10) e.g. 3 * 10 = 30
+  if (hasChecklist) {
+    checklistResults.forEach((r: ChecklistResult) => {
       const matchingItem = checklist.find((c: any) => String(c.id) === String(r.id));
       const weight = Number(matchingItem?.weight) || 1;
       const score = Number(r.score) || 0;
-      return sum + (score / 10) * weight;
-    }, 0);
-    avgScore = totalWeight > 0 ? (weightedScore / totalWeight) * 10 : 0;
+      weightedAchievedPoints += score * weight;
+      weightedMaxPoints += weight * 10;
+    });
+  }
+  const weightedPercent = weightedMaxPoints > 0
+    ? Math.round((weightedAchievedPoints / weightedMaxPoints) * 100)
+    : 0;
+
+  // Calculate overall display score (0-10) - prefer weighted, fallback to scores object
+  let avgScore = 0;
+  if (hasChecklist && weightedMaxPoints > 0) {
+    avgScore = (weightedAchievedPoints / weightedMaxPoints) * 10;
+  } else if (scoreKeys.length > 0) {
+    const total = scoreKeys.reduce((sum: number, key: string) => sum + (Number(scores[key]) || 0), 0);
+    avgScore = total / scoreKeys.length;
   }
 
   // Include doc score in overall if applicable
@@ -183,21 +223,52 @@ export function EvaluationClient({ simId }: { simId: string }) {
             {lang === 'tr' ? data?.template?.titleTr : data?.template?.titleDe}
           </p>
 
-          {/* Overall Score */}
+          {/* Overall Score - Weighted */}
           <Card className="mb-6 border-primary/20">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-center gap-6">
-                <div className="h-20 w-20 rounded-full border-4 border-primary/20 flex items-center justify-center">
-                  <span className={`text-3xl font-bold ${getScoreColor(avgScore)}`}>
-                    {avgScore?.toFixed?.(1) ?? '0'}
-                  </span>
+              <div className="flex items-center justify-center gap-6 flex-wrap">
+                <div className="relative h-24 w-24 shrink-0">
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted" />
+                    <motion.circle
+                      cx="50"
+                      cy="50"
+                      r="42"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      strokeLinecap="round"
+                      className={getProgressColor(avgScore).replace('bg-', 'text-')}
+                      initial={{ strokeDasharray: '0 264' }}
+                      animate={{ strokeDasharray: `${(weightedPercent / 100) * 264} 264` }}
+                      transition={{ duration: 1, delay: 0.2 }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className={`text-2xl font-bold ${getScoreColor(avgScore)}`}>
+                      {weightedPercent}%
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-display font-semibold text-lg">{t('evaluation.overall')}</p>
-                  <p className="text-sm text-muted-foreground">{t('evaluation.outOf')}</p>
-                  {hasChecklist && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('evaluation.checklist')}: {fulfilledCount}/{totalCount} {t('evaluation.fulfilled')}
+                <div className="flex-1 min-w-[200px]">
+                  <p className="font-display font-semibold text-lg">
+                    {hasChecklist ? t('evaluation.weightedScore') : t('evaluation.overall')}
+                  </p>
+                  {hasChecklist ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        {t('evaluation.achievedOf', { achieved: weightedAchievedPoints, max: weightedMaxPoints })}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t('evaluation.checklist')}: {fulfilledCount}/{totalCount} {t('evaluation.fulfilled')}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground/80 mt-2 italic leading-snug">
+                        {t('evaluation.weightedScoreHint')}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {avgScore.toFixed(1)} {t('evaluation.outOf')}
                     </p>
                   )}
                 </div>
@@ -382,6 +453,90 @@ export function EvaluationClient({ simId }: { simId: string }) {
                   <p className="text-sm leading-relaxed">{data?.evaluation?.feedbackTr ?? 'Geri bildirim mevcut değil.'}</p>
                 </TabsContent>
               </Tabs>
+            </CardContent>
+          </Card>
+
+          {/* Optional Coaching Feedback */}
+          <Card className="mb-6 border-primary/30 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Sparkles className="h-5 w-5 text-primary" />
+                {t('evaluation.coachingFeedbackTitle')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!coachingFeedbackDe && !coachingLoading && (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {t('evaluation.coachingFeedbackDescription')}
+                  </p>
+                  <Button
+                    onClick={() => handleRequestCoachingFeedback(false)}
+                    className="w-full sm:w-auto gap-2"
+                    variant="default"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {t('evaluation.requestCoachingFeedback')}
+                  </Button>
+                  {coachingError && (
+                    <div className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                      {coachingError}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {coachingLoading && (
+                <div className="flex items-center gap-3 py-6 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {t('evaluation.requestingCoachingFeedback')}
+                </div>
+              )}
+
+              <AnimatePresence>
+                {coachingFeedbackDe && !coachingLoading && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Tabs defaultValue="de">
+                      <TabsList className="mb-4">
+                        <TabsTrigger value="de">Deutsch</TabsTrigger>
+                        <TabsTrigger value="tr" disabled={!coachingFeedbackTr}>
+                          {lang === 'en' ? 'English' : 'Türkçe'}
+                        </TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="de">
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+                          <ReactMarkdown>{coachingFeedbackDe}</ReactMarkdown>
+                        </div>
+                      </TabsContent>
+                      <TabsContent value="tr">
+                        <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
+                          <ReactMarkdown>{coachingFeedbackTr || ''}</ReactMarkdown>
+                        </div>
+                      </TabsContent>
+                    </Tabs>
+                    <div className="mt-4 pt-4 border-t flex justify-end">
+                      <Button
+                        onClick={() => handleRequestCoachingFeedback(true)}
+                        variant="outline"
+                        size="sm"
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        {t('evaluation.regenerateCoachingFeedback')}
+                      </Button>
+                    </div>
+                    {coachingError && (
+                      <div className="mt-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3">
+                        {coachingError}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </CardContent>
           </Card>
 

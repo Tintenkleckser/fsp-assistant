@@ -68,17 +68,19 @@ model SimulationInteraction {
 }
 
 model Evaluation {
-  id               String         @id @default(uuid())
-  simulationId     String         @unique @map("simulation_id")
-  feedbackDe       String         @map("feedback_de") @db.Text
-  feedbackTr       String         @map("feedback_tr") @db.Text
-  scores           Json           @default("{}")
-  checklistResults Json           @default("[]") @map("checklist_results")
-  docFeedbackDe    String?        @map("doc_feedback_de") @db.Text
-  docFeedbackTr    String?        @map("doc_feedback_tr") @db.Text
-  docScore         Int?           @map("doc_score")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  simulation       UserSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  id                 String         @id @default(uuid())
+  simulationId       String         @unique @map("simulation_id")
+  feedbackDe         String         @map("feedback_de") @db.Text
+  feedbackTr         String         @map("feedback_tr") @db.Text
+  scores             Json           @default("{}")
+  checklistResults   Json           @default("[]") @map("checklist_results")
+  docFeedbackDe      String?        @map("doc_feedback_de") @db.Text
+  docFeedbackTr      String?        @map("doc_feedback_tr") @db.Text
+  docScore           Int?           @map("doc_score")
+  coachingFeedbackDe String?        @map("coaching_feedback_de") @db.Text
+  coachingFeedbackTr String?        @map("coaching_feedback_tr") @db.Text
+  createdAt          DateTime       @default(now()) @map("created_at")
+  simulation         UserSimulation @relation(fields: [simulationId], references: [id], onDelete: Cascade)
 
   @@map("evaluations")
 }
