@@ -1,0 +1,2 @@
+# This file intentionally replaces an invalid symlink from the Abacus export.
+# Dependencies are installed by Vercel with npm via the project settings.
